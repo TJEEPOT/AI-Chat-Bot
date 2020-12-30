@@ -5,7 +5,7 @@ This is an AI Chat Bot which gives details for train tickets, can give estimated
 TBA
 
 # Credits
-Designed by Natural Unintelligence - CMP@UEA:
-Steven Diep
-Sam Humphreys
-Martin Siddons
+Designed by Natural Unintelligence - University of East Anglia (CMP) 2020/21:
+* Steven Diep
+* Sam Humphreys
+* Martin Siddons
