@@ -37,7 +37,7 @@ def single_fare(dep, arr, date, time):
               the url of the sales page for comparison.
     :raises:  ValueError if validation fails
     """
-    val_date, val_time = validate_datetime(date, time)  # input validation
+    val_date, val_time = __validate_datetime(date, time)  # input validation
 
     # Form a search url and headers
     terms = dep + "/" + arr + "/" + val_date + "/" + val_time + "/" + "dep"
@@ -47,7 +47,7 @@ def single_fare(dep, arr, date, time):
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
-    validate_result(title=str(soup.find("title")))  # validate if the result is not an error page
+    __validate_result(title=str(soup.find("title")))  # validate if the result is not an error page
     cheap_label = soup.find(class_="cheapest")  # this is the class with the cheapest price
 
     # Pull out the fare from html and isolate its value with regex
@@ -74,8 +74,8 @@ def return_fare(dep, arr, dep_date, dep_time, ret_date, ret_time):
     :returns: Strings for departure and return ticket prices, departure and return times and booking url
     :raises:  ValueError if validation fails
     """
-    val_out_date, val_out_time = validate_datetime(dep_date, dep_time)  # validate outbound
-    val_ret_date, val_ret_time = validate_datetime(ret_date, ret_time)  # validate return
+    val_out_date, val_out_time = __validate_datetime(dep_date, dep_time)  # validate outbound
+    val_ret_date, val_ret_time = __validate_datetime(ret_date, ret_time)  # validate return
 
     # Form a search url and headers
     terms = dep + "/" + arr + "/" + val_out_date + "/" + val_out_time + "/" + "dep" + \
@@ -85,7 +85,7 @@ def return_fare(dep, arr, dep_date, dep_time, ret_date, ret_time):
                "From": "m.siddons@uea.ac.uk"}  # good practice to remain contactable with web admins
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
-    validate_result(title=str(soup.find("title")))  # validate if the result is not an error page
+    __validate_result(title=str(soup.find("title")))  # validate if the result is not an error page
 
     # Pull out the fare from html and isolate its value with regex
     s = str(soup.find(id="buyCheapestButton"))
@@ -110,7 +110,7 @@ def delay(train, location, delayed, destination):
     pass
 
 
-def validate_datetime(date, time):
+def __validate_datetime(date, time):
     """ Validates that the date and time given are valid for searching
 
     :param date: Date in the form YYYY/MM/DD
@@ -134,7 +134,7 @@ def validate_datetime(date, time):
     return val_date, val_time
 
 
-def validate_result(title=None):
+def __validate_result(title=None):
     """Validation for output html. Will validate based on optional parameters
 
     :param title: Optional - page title to be validated
