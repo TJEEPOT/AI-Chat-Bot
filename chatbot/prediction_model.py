@@ -4,7 +4,7 @@
 """Functions for generating and using a given model
 
 Module  : CMP6040-A - Artificial Intelligence, Assignment 2
-File    : model.py
+File    : prediction_model.py
 Date    : Sunday 03 January 2021
 Desc.   : Script holds multiple models to choose from
 History : 03/01/2020 - v1.0 - Create project file

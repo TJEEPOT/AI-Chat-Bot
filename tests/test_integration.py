@@ -10,7 +10,7 @@ Desc.   : Testing integration between all systems
 History : 30/12/2020 - v1.0 - Create project file
 """
 import unittest
-from context import model
+from context import prediction_model
 
 
 class MyTestCase(unittest.TestCase):
