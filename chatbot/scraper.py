@@ -16,11 +16,11 @@ import requests
 import datetime
 from bs4 import BeautifulSoup
 
-__author__ = "Martin Siddons"
-__credits__ = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
+__author__     = "Martin Siddons"
+__credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
 __maintainer__ = "Martin Siddons"
-__email__ = "m.siddons@uea.ac.uk"
-__status__ = "Prototype"  # "Development" "Prototype" "Production"
+__email__      = "m.siddons@uea.ac.uk"
+__status__     = "Prototype"  # "Development" "Prototype" "Production"
 
 
 def single_fare(dep, arr, date, time):
