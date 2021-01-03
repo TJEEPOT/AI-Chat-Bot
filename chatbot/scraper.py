@@ -25,14 +25,18 @@ __status__     = "Prototype"  # "Development" "Prototype" "Production"
 
 def single_fare(dep, arr, date, time):
     """Takes stations and datetime object and creates a single ticket search term
-
     Validated details are formed into a term to be appended to the search URL.
 
+    :type dep:      str
     :param dep:     The CRS code of the departing station (e.g. NRW)
+    :type arr:      str
     :param arr:     The CRS code of the arriving station
+    :type date:     str
     :param date:    A date in the form YYYY/MM/DD (e.g. 2021/01/29) to search for results
+    :type time:     str
     :param time:    A time in the form HH:MM representing the target time for a train
 
+    :rtype:   list
     :returns: Strings representing the cheapest fare in pounds, the time of the cheapest train as HH:MM and
               the url of the sales page for comparison.
     :raises:  ValueError if validation fails
@@ -64,13 +68,20 @@ def single_fare(dep, arr, date, time):
 def return_fare(dep, arr, dep_date, dep_time, ret_date, ret_time):
     """Takes stations, dates and times and returns the details for the cheapest tickets from nationalrail.co.uk
 
+    :type dep:       str
     :param dep:      Initial departure station's CRS code
+    :type arr:       str
     :param arr:      Initial arrival station's CRS code
+    :type dep_date:  str
     :param dep_date: Departure journey date
+    :type dep_time:  str
     :param dep_time: Departure journey time
+    :type ret_date:  str
     :param ret_date: Return journey date
+    :type ret_time:  str
     :param ret_time: Return journey time
 
+    :rtype:   list
     :returns: Strings for departure and return ticket prices, departure and return times and booking url
     :raises:  ValueError if validation fails
     """
@@ -112,10 +123,12 @@ def delay(train, location, delayed, destination):
 
 def __validate_datetime(date, time):
     """ Validates that the date and time given are valid for searching
-
+    :type date:  str
     :param date: Date in the form YYYY/MM/DD
+    :type time:  str
     :param time: Time in the form HH:MM
 
+    :rtype:  list
     :return: Date in the form DDMMYY and time in the form HHMM
     :raises: ValueError if date or time are not valid datetime objects or date is out of bounds
     """
@@ -136,8 +149,8 @@ def __validate_datetime(date, time):
 
 def __validate_result(title=None):
     """Validation for output html. Will validate based on optional parameters
-
-    :param title: Optional - page title to be validated
+    :type title:  string, optional
+    :param title: Page title to be validated
 
     :raises: ValueError if given parameter does not validate
              NotImplementedError if no valid parameter is passed
