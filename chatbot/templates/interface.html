@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chatbot Demo</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="icon" type="image/png" href="static/images/cbicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet">
+
+
+</head>
+<body>
+<div class="wrapper">
+    <div class="main-container">
+        <header class="header-bar">
+            <div class="header-app-title">
+                Train Tickets Chatbot App
+            </div>
+            <span class="material-icons md-48" id="train-logo">
+train
+</span>
+        </header>
+        <div class="chat-area" id="chat-box">
+
+
+
+        </div>
+        <div class="message-area">
+
+                <input type="text" id="message-input-box" name="input-box" placeholder="Write a message...">
+            <button class="general-button"><span class="material-icons">
+record_voice_over
+</span></button>
+            <button onclick="submit()" id="message-submit" name="input-submit" class="general-button"><span class="material-icons">
+send
+</span></button>
+
+        </div>
+    </div>
+</div>
+<script type="text/javascript" src="static/js/interface.js"></script>
+</body>
+</html>
