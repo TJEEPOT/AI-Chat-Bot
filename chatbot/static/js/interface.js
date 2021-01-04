@@ -16,7 +16,7 @@ function submit(){
                 response.json().then(function (data){
                     console.log(data);
                     // take response here
-                    addMessage(data.message, "bot-message", "Bot")
+                    addMessage(data.message, "bot-message", "TransportBot")
                 })
             });
             inputBox.value = "";
@@ -49,4 +49,6 @@ document.getElementById("message-input-box").addEventListener('keyup', function 
         document.getElementById("message-submit").click();
     }
 })
-addMessage("Hello, talk to me!!!", "bot-message","Bot");
+addMessage("Hello! Let me know what I can help you with.", "bot-message","TransportBot");
+addMessage("For testing, try giving me a message in the following format: CRS1, CRS2, date, time. e.g.: NRW, LST, " +
+    "2021/01/29, 16:30", "bot-message","TransportBot");
