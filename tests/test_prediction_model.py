@@ -11,7 +11,7 @@ History : 28/12/2020 - v1.0 - Create project file
 
 """
 import unittest
-from context import prediction_model
+from context import model
 
 
 class MyTestCase(unittest.TestCase):

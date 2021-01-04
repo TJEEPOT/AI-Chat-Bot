@@ -23,7 +23,7 @@ class TestStringMethods(unittest.TestCase):
         self.assertEqual(cost, "£10.00")
         self.assertEqual(time, "16:30")
         self.assertEqual(url, "https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/290121/1630/dep")
-        # print("the cheapest fare is", trip[0], "departing at", trip[1], ". Book this ticket at", trip[2])
+        # print("The cheapest fare is {} departing at {}. Book this ticket at {}".format(fare, time, url))
 
     def test_single_date(self):
         # greater anglia, testing non-norwich stations and non-quarterly time, cheapest fare is the ### result
