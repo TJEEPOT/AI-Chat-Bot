@@ -31,9 +31,10 @@ train
         <div class="message-area">
 
                 <input type="text" id="message-input-box" name="input-box" placeholder="Write a message...">
-            <button class="general-button"><span class="material-icons">
+            <button class="general-button" id="record-button"><span class="material-icons" id="record-button-span">
 record_voice_over
 </span></button>
+
             <button onclick="submit()" id="message-submit" name="input-submit" class="general-button"><span class="material-icons">
 send
 </span></button>
@@ -42,5 +43,6 @@ send
     </div>
 </div>
 <script type="text/javascript" src="static/js/interface.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/RecordRTC/5.6.1/RecordRTC.js"></script>
 </body>
 </html>
