@@ -1,5 +1,8 @@
 const botName = "TransportBot";
 const recordTimeout = 20000;
+var useTextToSpeech = new Boolean(true);    // needs to be set somewhere in ui by function
+var chosenVoice = null; // set on load to avoid problems with async func
+
 
 document.getElementById("message-input-box").addEventListener('keyup', function (e){
     if (e.code === 'Enter'){
@@ -10,7 +13,13 @@ document.getElementById("message-input-box").addEventListener('keyup', function 
 var rec_button = document.getElementById('record-button');
 var rec_span = document.getElementById('record-button-span');
 
+window.speechSynthesis.onvoiceschanged=()=>{
+    let voiceList = speechSynthesis.getVoices();
+    chosenVoice = voiceList[4];     // not sure how to avoid this
+}
+
 window.addEventListener('DOMContentLoaded', ()=>{
+
     navigator.mediaDevices.getUserMedia({audio: true}).then(async function(stream) {
     let rtcRecorder = RecordRTC(stream, {
         type: 'audio', mimeType: 'audio/wav', recorderType: RecordRTC.StereoAudioRecorder
@@ -41,6 +50,10 @@ window.addEventListener('DOMContentLoaded', ()=>{
 });
 })
 
+function toggleTextToSpeech(){
+    useTextToSpeech = !useTextToSpeech;
+}
+
 function submit(){
             inputBox = document.getElementById("message-input-box");
             userMessage = inputBox.value
@@ -55,16 +68,30 @@ function submit(){
               body: JSON.stringify(userMessage)
             }).then(function (response){
                 response.json().then(function (data){
+                    console.log(response);
                     console.log(data);
                     // take response here
-                    addMessage(data.message, "bot-message", botName)
+                    addMessage(data.message, "bot-message", botName);
+                    if (useTextToSpeech){readMessage(data.message);};
                 })
             });
             inputBox.value = "";
             }
-
 }
 
+function readMessage(message){
+        if ('speechSynthesis' in window){
+            let speechMessage = new SpeechSynthesisUtterance(message);
+            speechMessage.voice = chosenVoice;
+            speechSynthesis.speak(speechMessage);
+
+        }else{
+            console.log("Browser does not support speech synthesis!")
+        }
+
+
+
+}
 
 function addMessage(message, userType, name){
     var date = new Date()
