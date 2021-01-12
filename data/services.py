@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Functions for building a graph object and assembling a specific rail network
+"""Functions for building a graph object and assembling a specific rail service network
 
 Network + Station code is largely from https://www.bogotobogo.com/python/python_graph_data_structures.php
 
@@ -50,9 +50,11 @@ class Station:
 
         :param Station destination: A station that self links to
 
-        :rtype: list[list[datetime, datetime]]
+        :rtype: list[list[str, str]] or None
         :return: list of times the trains leaving the self station for destination station are classed as peak
         """
+        if destination is None:
+            return None
         return self.connected[destination]
 
 
@@ -86,7 +88,7 @@ class Network:
 
         :param str frm: Source station the rail runs from
         :param str to:  Destination station the rail connects to
-        :param list[list[datetime, datetime]] peak: list of [start, end] datetime objects representing peak travel times
+        :param list[list[str, str]] peak: list of [start, end] str objects representing peak travel times
         """
         if frm not in self._rail_line:
             self.add_station(frm)
@@ -122,6 +124,7 @@ class Network:
         path.append(source)
 
         if source == destination:
+            path.append(destination)
             return path
         for station in source.connected.keys():
             if station not in path:
@@ -134,24 +137,41 @@ def build_ga_intercity():
     """Uses the Graph class to build a representation of the train
     stations on the Intercity segment of the Greater Anglia train network
 
+    This should probably be made OOP and be an implementation of an interface, but will do for a demo. Also,
+    this service has so many exceptions to its peak times that it's next to impossible to model perfectly,
+    but I'm not going to worry so much about that.
+
     :rtype:  Network
     :return: A Graph object representing the Greater Anglia network
     """
     n = Network()
     stations = ["NRCH", "DISS", "STWMRKT", "NEEDHAM", "IPSWICH", "MANNGTR", "CLCHSTR", "MRKSTEY", "KELVEDN", "WITHAME",
                 "HFLPEVL", "CHLMSFD", "INGTSTN", "SHENFLD", "BRTWOOD", "HRLDWOD", "GIDEAPK", "ROMFORD", "CHDWLHT",
-                "GODMAYS", "SVNKNGS", "ILFORD", "MANRPK", "FRSTGT", "MRYLAND", "STFD", "LIVST"]
-    for station in stations:
-        n.add_station(station)
+                "GODMAYS", "SVNKNGS", "ILFORD", "MANRPK", "FRSTGT", "MRYLAND", "STFD", "BTHNLGR", "LIVST"]
 
-    peak_from = datetime.strptime("0400", "%H%M")
+    peak_am_from = "0400"
     peak_to_london = ["0805", "0821", "0833", "0839", "0846", "0857", "0906", "0913", "0916", "0919", "0921", "0925",
                       "0932", "0936", "0937", "0941", "0942", "0943", "0945", "0945", "0946", "0947", "0948", "0949",
-                      "0950", "0951", "1001"]
-    peak_times = _str_to_dt(peak_to_london)
+                      "0950", "0951", "0957", "1001"]
+    # peak_times = _str_to_dt(peak_to_london)
 
-    for i in range(len(stations)-1):  # add connections between stations going into London
-        n.add_rail(stations[i], stations[i+1], [[peak_from, peak_times[i]]])
+    for i in range(len(stations)-1):  # add connections between stations from Norwich to London
+        n.add_rail(stations[i], stations[i+1], [[peak_am_from, peak_to_london[i]]])
+
+    # Connections from London to Norwich
+    peak_from_london_am = ["0930", "", "", "", "", "", "", "", "", "", "",
+                           "", "", "", "", "", "", "", "", "", "", "",
+                           "", "", "", "", "", ""]
+    peak_pm_from        = ["1624", "", "", "", "", "", "", "", "", "", "",
+                           "", "", "", "", "", "", "", "", "", "", "",
+                           "", "", "", "", "", ""]
+    peak_from_london_pm = ["1834", "", "", "", "", "", "", "", "", "", "",
+                           "", "", "", "", "", "", "", "", "", "", "",
+                           "", "", "", "", "", ""]
+    for i in reversed(range(1, len(stations))):  # go from London to Norwich
+        n.add_rail(stations[i], stations[i-1], [[peak_am_from, peak_from_london_am[i]],
+                                                [peak_pm_from[i], peak_from_london_pm[i]]])
+
 
     return n
 
