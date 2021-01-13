@@ -8,3 +8,4 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import model.scraper as scraper
 import model.prediction_model as model
+import chatbot.presenter as presenter
