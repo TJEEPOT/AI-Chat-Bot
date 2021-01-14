@@ -1,7 +1,7 @@
 const botName = "TransportBot";
 const recordTimeout = 20000;
-var useTextToSpeech = new Boolean(true);    // needs to be set somewhere in ui by function
-var chosenVoice = null; // set on load to avoid problems with async func
+var useTextToSpeech = Boolean(false);
+var chosenVoice = null; // set on load to avoid problems with async function
 
 
 document.getElementById("message-input-box").addEventListener('keyup', function (e){
@@ -10,8 +10,6 @@ document.getElementById("message-input-box").addEventListener('keyup', function 
         document.getElementById("message-submit").click();
     }
 })
-var rec_button = document.getElementById('record-button');
-var rec_span = document.getElementById('record-button-span');
 
 window.speechSynthesis.onvoiceschanged=()=>{
     let voiceList = speechSynthesis.getVoices();
@@ -24,6 +22,9 @@ window.addEventListener('DOMContentLoaded', ()=>{
     let rtcRecorder = RecordRTC(stream, {
         type: 'audio', mimeType: 'audio/wav', recorderType: RecordRTC.StereoAudioRecorder
     });
+    let rec_button = document.getElementById('record-button');
+    let rec_span = document.getElementById('record-button-span');
+
     rec_button.addEventListener("click", ()=>{
         if (rtcRecorder.getState() === "inactive"){
             rtcRecorder.startRecording();
@@ -48,17 +49,30 @@ window.addEventListener('DOMContentLoaded', ()=>{
         }
     });
 });
+
+    let speech_button = document.getElementById('speech-button');
+    speech_button.addEventListener("click", ()=>{
+        let speech_span = document.getElementById('speech-button-span');
+            useTextToSpeech = !useTextToSpeech;
+        if (useTextToSpeech){
+            speech_span.innerHTML = 'volume_up';
+        }else{
+            speech_span.innerHTML = 'volume_off';
+            }
+    })
 })
 
-function toggleTextToSpeech(){
-    useTextToSpeech = !useTextToSpeech;
-}
 
+
+/**
+ *
+ * Retrieves user input-box and gets the response from the chatbot. Adds both to the chat window using addMessage
+ *
+ */
 function submit(){
             inputBox = document.getElementById("message-input-box");
             userMessage = inputBox.value
             if (userMessage !== ""){
-                // display message
             addMessage(inputBox.value, "human-message", "You")
             response = fetch('get_reply', {
               method: 'post',
@@ -68,9 +82,6 @@ function submit(){
               body: JSON.stringify(userMessage)
             }).then(function (response){
                 response.json().then(function (data){
-                    console.log(response);
-                    console.log(data);
-                    // take response here
                     addMessage(data.message, "bot-message", botName);
                     if (useTextToSpeech){readMessage(data.message);};
                 })
@@ -79,6 +90,12 @@ function submit(){
             }
 }
 
+/**
+ *
+ * Reads a message using text-to-speech
+ *
+ * @param message {string} the message to be read
+ */
 function readMessage(message){
         if ('speechSynthesis' in window){
             let speechMessage = new SpeechSynthesisUtterance(message);
@@ -93,6 +110,14 @@ function readMessage(message){
 
 }
 
+/**
+ *
+ * Inserts a message for either the bot or the user into the chat window in the required format.
+ *
+ * @param message {string} the message to add to the chat
+ * @param userType {string} type of user sending the message (valid inputs are "human-message" or "bot-message")
+ * @param name {string} the name of the bot or user
+ */
 function addMessage(message, userType, name){
     var date = new Date()
     const baseHTML = ` <div class="${userType}">
@@ -112,18 +137,22 @@ function addMessage(message, userType, name){
     document.getElementById("message-input-box").scrollIntoView({block:"start", behavior: "smooth"})
 }
 
+/**
+ * Sends user audio to the server for speech recognition then puts the result into the user input-box
+ * @param audio recorded user input for processing
+ */
 function sendAudio(audio){
     const formData = new FormData();
     formData.append('file', audio);
-    console.log(audio);
     response = fetch('get_audio', {
               method: 'post',
               body: formData
             }).then(function (response){
                 response.json().then(function (data){
-                    console.log(data);
-                    // take response here
-                    document.getElementById('message-input-box').value = data['message'];
+                    let wordList = data['message'];
+                    if (wordList !== null){
+                        document.getElementById('message-input-box').value = data['message'];
+                    }
                 })
             });
 }
