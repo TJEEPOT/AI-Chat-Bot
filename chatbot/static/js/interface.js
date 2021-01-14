@@ -157,7 +157,6 @@ function sendAudio(audio){
             });
 }
 
-
-addMessage("Hello! Let me know what I can help you with.", "bot-message",botName);
+addMessage("Hello! Let me know what I can help you with.", "bot-message", botName);
 addMessage("For testing, try giving me a message in the following format: CRS1, CRS2, date, time. e.g.: NRW, LST, " +
-    "2021/01/29, 16:30", "bot-message",botName);
+    "2021/01/29, 16:30", "bot-message", botName);
