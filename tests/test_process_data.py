@@ -11,9 +11,14 @@ class MyTestCase(unittest.TestCase):
     def test_transform_data_dep(self):
         data = ["201701267101240", "NRCH", "", "", "06:00", "", "", "", "", "", "06:01"]
         source, date, delay = process.entry_to_query(data)
-        destination = "DISS"
-        network = services.build_ga_intercity()
-        processed_entry = process.query_to_input(source, destination, date, delay, network)
+        dest     = "DISS"
+        network  = services.build_ga_intercity()
+        path     = network.find_path(source, dest)
+        stn_from = path[0]
+        stn_to   = path[1]
+        processed_entry    = process.query_to_input(stn_from, stn_to, date, delay)
+        processed_entry[0] = processed_entry[0].get_id()
+        processed_entry[1] = processed_entry[1].get_id()
         self.assertEqual(["NRCH", "DISS", 4, 1, 0, 6, 1], processed_entry)
 
     # dropping the rest of these tests for now since they need to be rewritten as above to work right now,

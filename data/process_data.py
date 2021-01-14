@@ -50,7 +50,7 @@ def raw(table):
     os.chdir(r".\data\scraped")
     for file in glob.glob("*.csv"):
         # data = read_from_csv(r"\scraped\{}".format(file))
-        csv_data = read_from_csv(file)
+        csv_data = __read_from_csv(file)
         # could add weather data here
 
         valid_tpl = ["NRCH", "DISS", "STWMRKT", "NEEDHAM", "IPSWICH", "MANNGTR", "CLCHSTR", "MRKSTEY", "KELVEDN",
@@ -65,22 +65,25 @@ def raw(table):
                 continue  # we don't record the final station since there's no delay between it and the station after.
             if entry[1] not in valid_tpl:  # skip every entry that isn't for a station listed above (remove later)
                 continue
-            source, date, delay = entry_to_query(entry)
+            source, date, delay = __entry_to_query(entry)
 
-            destination = next_entry[1]
-            network = services.build_ga_intercity()
-            processed_entry = query_to_input(source, destination, date, delay, network)
-            # Need to look for cancelled trains then add missing stops here perhaps
+            dest     = next_entry[1]
+            network  = services.build_ga_intercity()
+            path     = network.find_path(source, dest)
+            stn_from = path[0]
+            stn_to   = path[1]
+            processed_entry = __query_to_input(stn_from, stn_to, date, delay)
+            # Need to look for cancelled trains then add missing stops here perhaps, then process all stops in one go.
             train_data.append(processed_entry)
 
         os.chdir(r"..")
-        written = write_to_db(table, train_data)
+        written = __write_to_db(table, train_data)
         print("processed", written, "entries in file", file)
         path = os.path.dirname(os.path.abspath(__file__))
         os.replace(r"{}\scraped\{}".format(path, file), r"{}\scraped\processed\{}".format(path, file))
 
 
-def read_from_csv(file):
+def __read_from_csv(file):
     """Reads the provided train data CSV file and removes unneeded columns.
 
     :param str file: Name of file to be processed
@@ -101,11 +104,36 @@ def read_from_csv(file):
     return data
 
 
-def read_weather_data():
+def __read_weather_data():
     pass
 
 
-def entry_to_query(entry):
+def user_to_query(source, destination, delay):
+    """Takes information from the user and returns a valid input for the model
+
+    :param str source: tpl code of the source station
+    :param str destination: tpl code of the final destination on this journey
+    :param int delay: number of minutes this journey has been delayed by
+
+    :rtype: int
+    :return: the amount of minutes the user will be delayed once they get to their final destination
+    """
+    now        = datetime.now()
+    network    = services.build_ga_intercity()
+    path       = network.find_path(source, destination)
+    train_data = []
+    for i in range(0, len(path)):
+        stn_from = path[0]
+        stn_to   = path[1]
+        processed_entry = __query_to_input(stn_from, stn_to, now, delay)
+        train_data.append(processed_entry)
+
+    # Put data into the model here
+    total_delay = 0
+    return total_delay
+
+
+def __entry_to_query(entry):
     """Takes a line (entry) from the processed CSV file and forms a query (data matching one station input from user)
 
     :param list[str] entry: list of data: rid, tpl, wta, wtp, wtd, arr_et, pass_et, dep_et, arr_at, pass_at, dep_at
@@ -141,27 +169,13 @@ def entry_to_query(entry):
     return entry[1], dt, delay_mins
 
 
-def user_to_query(source, destination, now, delay):
-    """Takes information from the user and returns a valid input for the model
+def __query_to_input(source, destination, dt, delay):
+    """Processes a trip between two adjacent stops and builds model inputs
 
-    :param str source:
-    :param str destination:
-    :param datetime now:
-    :param int delay:
-
-    :rtype: list[list[str, str, int, int, int, int, int]]
-    :return:
-    """
-
-
-def query_to_input(source, destination, dt, delay, network):
-    """Processes a journey between two adjacent stops and builds model inputs
-
-    :param Station source:      tpl of the station to record
-    :param Station destination: tpl of the next station on the network (either stopping or passing)
+    :param Station source:      object of the station to record
+    :param Station destination: object of the next station on the network (either stopping or passing)
     :param datetime dt:     date and time at this point of the journey
     :param int delay:       current delay of the journey in minutes (rounded down)
-    :param Network network: optional, Network object modelling the current train network
 
     :rtype: list[str, str, int, int, int, int, int]
     :return: Record entry of form [source, destination, day_of_week, weekday, off_peak, hour_of_day, delay]
@@ -174,17 +188,11 @@ def query_to_input(source, destination, dt, delay, network):
 
     # find if the train is a peak-service by building the network and checking the peak times. Beyond the demo,
     # this should really take an argument for a given network and call that network's function.
-    if network is None:
-        network = services.build_ga_intercity()
     time = dt.strftime("%H%M")
 
     off_peak = 1  # true
-
     if weekday:
-        stn_from = network.get_station(source)
-        path = network.find_path(source, destination)
-        stn_to = path[1]
-        peaks = stn_from.get_peak(stn_to)
+        peaks = source.get_peak(destination)
         for start, end in peaks:  # for each list of peak times in peak, check if the given time is between them
             if start <= time <= end:
                 off_peak = 0  # false
@@ -192,7 +200,7 @@ def query_to_input(source, destination, dt, delay, network):
     return [source, destination, day_of_week, weekday, off_peak, hour_of_day, delay]
 
 
-def write_to_db(table, data):
+def __write_to_db(table, data):
     """Takes a list of records and adds them to the given table of database db
 
     :param str table: Name of the table to insert records into - if this doesn't exist, it will be created
