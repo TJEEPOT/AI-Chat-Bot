@@ -49,22 +49,15 @@ def raw(table):
     """
     os.chdir(r".\data\scraped")
     for file in glob.glob("*.csv"):
-        # data = read_from_csv(r"\scraped\{}".format(file))
-        csv_data = __read_from_csv(file)
+        csv_data = __read_from_csv(file)  # warning: this function removes entries you might want to keep.
         # could add weather data here
 
-        valid_tpl = ["NRCH", "DISS", "STWMRKT", "NEEDHAM", "IPSWICH", "MANNGTR", "CLCHSTR", "MRKSTEY", "KELVEDN",
-                     "WITHAME", "HFLPEVL", "CHLMSFD", "INGTSTN", "SHENFLD", "BRTWOOD", "HRLDWOD", "GIDEAPK",
-                     "ROMFORD", "CHDWLHT", "GODMAYS", "SVNKNGS", "ILFORD", "MANRPK", "FRSTGT", "MRYLAND", "STFD",
-                     "LIVST"]
         train_data = []
-        for i in range(1, len(csv_data)-1):  # skip the header and final row (since final row is None)
+        for i in range(0, len(csv_data)-1):  # skip the final row since it is None
             entry = csv_data[i]
             next_entry = csv_data[i+1]
             if entry[0] != next_entry[0]:  # check if we're on the last station (rid code change) if so, move on.
                 continue  # we don't record the final station since there's no delay between it and the station after.
-            if entry[1] not in valid_tpl:  # skip every entry that isn't for a station listed above (remove later)
-                continue
             source, date, delay = __entry_to_query(entry)
 
             dest     = next_entry[1]
@@ -79,21 +72,28 @@ def raw(table):
         os.chdir(r"..")
         written = __write_to_db(table, train_data)
         print("processed", written, "entries in file", file)
-        path = os.path.dirname(os.path.abspath(__file__))
-        os.replace(r"{}\scraped\{}".format(path, file), r"{}\scraped\processed\{}".format(path, file))
+        # path = os.path.dirname(os.path.abspath(__file__))  # this is probably screwing things up, do it at the end
+        # os.replace(r"{}\scraped\{}".format(path, file), r"{}\scraped\processed\{}".format(path, file))
 
 
 def __read_from_csv(file):
-    """Reads the provided train data CSV file and removes unneeded columns.
+    """Reads the provided train data CSV file and removes unneeded columns and rows.
 
     :param str file: Name of file to be processed
+
     :rtype: list[list[str]]
     :return: list of lists matching the processed rows and columns of the given CSV, with unneeded info removed
     """
+    valid_tpl = ["NRCH", "DISS", "STWMRKT", "NEEDHAM", "IPSWICH", "MANNGTR", "CLCHSTR", "MRKSTEY", "KELVEDN",
+                 "WITHAME", "HFLPEVL", "CHLMSFD", "INGTSTN", "SHENFLD", "BRTWOOD", "HRLDWOD", "GIDEAPK",
+                 "ROMFORD", "CHDWLHT", "GODMAYS", "SVNKNGS", "ILFORD", "MANRPK", "FRSTGT", "MRYLAND", "STFD",
+                 "BTHNLGR", "LIVST"]
     data = []
     with open(file) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
+            if row[1] not in valid_tpl:  # skip every entry that isn't for a station listed above
+                continue
             # delete columns pta, ptd, arr_wet, arr_atRemoved, pass_wet, pass_atRemoved, dep_wet, dep_atRemoved,
             # cr_code, lr_code
             del_cols = [20, 19, 15, 14, 12, 11, 9, 8, 3, 2]  # reversed, else index will go out of bounds
@@ -197,7 +197,7 @@ def __query_to_input(source, destination, dt, delay):
             if start <= time <= end:
                 off_peak = 0  # false
 
-    return [source, destination, day_of_week, weekday, off_peak, hour_of_day, delay]
+    return [source.get_id(), destination.get_id(), day_of_week, weekday, off_peak, hour_of_day, delay]
 
 
 def __write_to_db(table, data):
@@ -267,4 +267,4 @@ def connect_to_db():
 
 if __name__ == "__main__":
     os.chdir(r"..")
-    raw("testone")
+    raw("model")

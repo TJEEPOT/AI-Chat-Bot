@@ -10,17 +10,19 @@ Desc.   : Methods to scrape nationalrail.co.uk for data.
 History : 28/12/2020 - v1.0 - Create project file
           29/12/2020 - v1.1 - Complete single_fare() implementation
           30/12/2020 - v1.2 - Complete return_fare() implementation, split out validation and added to it
+          15/01/2020 - v1.3 - Complete historical_trains() implementation including helper functions.
 """
 import re
 import requests
 import datetime
+import os
 from bs4 import BeautifulSoup
 
 __author__     = "Martin Siddons"
 __credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
 __maintainer__ = "Martin Siddons"
 __email__      = "m.siddons@uea.ac.uk"
-__status__     = "Prototype"  # "Development" "Prototype" "Production"
+__status__     = "Production"  # "Development" "Prototype" "Production"
 
 
 def single_fare(dep, arr, date, time):
@@ -105,8 +107,102 @@ def return_fare(dep, arr, dep_date, dep_time, ret_date, ret_time):
     return fare, res_time[0], res_time[1], url
 
 
-def delay(train, location, delayed, destination):
-    pass
+def historical_trains():
+    """Specify which train details to retrieve from the online datafeeds, find the required data, format into the
+    required way and save to the data/scraped folder.
+
+    :rtype: bool
+    :return: True if scrape was a success else false.
+    """
+    time_from = "0400"
+    time_to   = "0800"
+    date_from = "2017-01-01"
+    date_to   = "2017-01-05"
+    days      = "WEEKDAY"  # "WEEKDAY" "SATURDAY" "SUNDAY"
+
+    rids = __hsp_metrics(time_from, time_to, date_from, date_to, days)
+    csv_data = [["rid", "crs", "ptd", "pta", "dep_at", "arr_at"]]  # header row
+    for rid in rids:
+        csv_data.append(__hsp_details(rid))
+
+    print(csv_data)
+    # save the CSV data to disk
+    return True
+
+
+def __hsp_metrics(time_from, time_to, date_from, date_to, days):
+    """Pull JSON from National Rail's HSP metrics datafeed, find all RID codes and return them. This service seems to
+    take a while to reply - be cautious as to how much data you wish to have returned.
+
+    :param str time_from: Start time for search in the form 'HHMM' e.g. '0400'
+    :param str time_to:   End time for search in the form 'HHMM' e.g. '2359'
+    :param str date_from: Date to search from, in the form 'YYYY-mm-dd' e.g. '2017-01-01'
+    :param str date_to:   Date to search until, in the form 'YYYY-mm-dd' e.g. '2017-02-01'
+    :param str days:      Either 'WEEKDAY', 'SATURDAY' or 'SUNDAY' to search those days.
+
+    :rtype:  set
+    :return: Unique RID codes for all journeys from NRW to LST between the given dates and times.
+    """
+    """
+    Documentation can be found at https://wiki.openraildata.com/index.php/HSP.
+    When registering at https://datafeeds.nationalrail.co.uk/ you only need the HSP subscription.
+    In 'Planned usage', mention you are using the HSP data for educational purposes, for a project, and for a limited 
+    time. The T & Cs should not be an issue, nor the limit on the number of requests an hour - but do be polite and 
+    do not swamp the web service with an excessive number of requests.
+    """
+    api_url = "https://hsp-prod.rockshore.net/api/v1/serviceMetrics"
+    headers = {"Content-Type": "application/json"}
+    auths = (os.environ.get("HSP_EMAIL"), os.environ.get("HSP_PASSWORD"))  # SET YOUR OWN ENVIRONMENT VARIABLES
+    data = {
+        "from_loc": "NRW",
+        "to_loc": "LST",
+        "from_time": time_from,
+        "to_time": time_to,
+        "from_date": date_from,
+        "to_date": date_to,
+        "days": days
+    }
+
+    r = requests.post(api_url, headers=headers, auth=auths, json=data)
+    json_response = r.json()
+
+    valid_rids = set()
+    services = json_response["Services"]
+    for service in services:
+        metrics = service["serviceAttributesMetrics"]
+        rids = metrics["rids"]
+        for rid in rids:
+            if rid not in valid_rids:
+                valid_rids.add(rid)
+
+    return valid_rids
+
+
+def __hsp_details(rid):
+    """Take a rid code and retrieve the journey from National Rail's HSP details datafeed, format the data into what
+    is needed for storing in csv and return.
+
+    :param str rid: A rid code for the journey to be returned
+
+    :rtype list
+    :return: Details to be added to CSV.
+    """
+    api_url = "https://hsp-prod.rockshore.net/api/v1/serviceDetails"
+
+    headers = {"Content-Type": "application/json"}
+    auths = (os.environ.get("HSP_EMAIL"), os.environ.get("HSP_PASSWORD"))  # SET YOUR OWN ENVIRONMENT VARIABLES
+
+    data = {"rid": rid}
+    r = requests.post(api_url, headers=headers, auth=auths, json=data)
+
+    json_response = r.json()
+    details = json_response["serviceAttributesDetails"]
+    locations = details["locations"]
+    results = []
+    for loc in locations:
+        line = [rid, loc["location"], loc["gbtt_ptd"], loc["gbtt_pta"], loc["actual_td"], loc["actual_ta"]]
+        results.append(line)
+    return results
 
 
 def __validate_datetime(date, time):
@@ -152,3 +248,7 @@ def __validate_result(title=None):
 
     else:
         raise NotImplementedError("Argument given for validation is not recognised.")
+
+
+if __name__ == "__main__":
+    historical_trains()
