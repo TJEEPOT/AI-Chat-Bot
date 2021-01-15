@@ -2,7 +2,8 @@ import unittest
 import model.reasoning_engine as re
 
 
-class MyTestCase(unittest.TestCase):
+class TestReasoningEngine(unittest.TestCase):
+
     def test_something(self):
         self.assertEqual(True, False)
 

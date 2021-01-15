@@ -3,162 +3,248 @@
 Module  : CMP6040-A - Artificial Intelligence, Assignment 2
 File    : reasoning_engine.py
 Date    : Friday 1 January 2021
-Desc.   : Methods to handle conversation between user and bot.
+Desc.   : Methods to handle conversation between user and bot through the use of forward chaining
 History : 01/01/2021 - v1.0 - Created project file
           03/01/2021 - v1.1 - Completed handling ticket request from user
           05/01/2021 - v1.2 - Finished validation of information for ticket
           06/01/2021 - v1.3 - Completed option for return ticket
+          10/01/2021 - v2.0 - Redesigned engine to understand delay queries
+          11/01/2021 - v2.1 - Separated each piece of train information into their own methods
+          14/01/2021 - v2.2 - Connected SQLite database to engine for validation of CRS code
+          15/01/2021 - v2.3 - Conversation now loops to answer more than one query
+          15/01/2021 - v2.4 - Immediately skips to confirmation of ticket if all information is provided at once
 """
-
+import sqlite3
 from datetime import date, time, datetime
 from experta import *
 
-__author__     = "Steven DIep"
-__credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
+__author__ = "Steven Diep"
+__credits__ = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
 __maintainer__ = "Steven Diep"
-__email__      = "steven_diep@hotmail.co.uk"
-__status__     = "Prototype"  # "Development" "Prototype" "Production"
+__email__ = "steven_diep@hotmail.co.uk"
+__status__ = "Prototype"  # "Development" "Prototype" "Production"
+
 
 class Chatbot(KnowledgeEngine):
     @DefFacts()
     def initial_action(self):
-        yield Fact(action="greet")
+        yield Fact(action="begin")
 
-    @Rule(Fact(action='greet'))
-    def start_convo(self):
+    @Rule(Fact(action='begin'))
+    def ask_query_type(self):
         print("Hello, how may I help you today? \nI can assist you with booking tickets, "
               "provide general information regarding train services or predict the arrival "
               "of your delayed train.")
         while True:
             queryChoice = input()
-            if queryChoice in ['ticket', 'help', 'delay']:  # TODO nlp must turn everything into lower case
-                self.declare(Fact(query=queryChoice))
+            if queryChoice in ['ticket', 'help', 'delay']:  # TODO nlp turns everything into lower case
+                self.declare(Fact(queryType=queryChoice))
                 break
-            else:
+            elif ',' in queryChoice:                         # if user already gives full info
+                departure_location, arrival_location, departure_date, departure_time, \
+                returning, return_date, return_time = queryChoice.split(',')                #example: Forest Gate,Abbey Wood,2021-09-09,13:00,yes,2021-09-09,21:00
+                self.declare(Fact(departure_location=departure_location, departCRS='FOG'))  #TODO must figure out how to validate this part easily
+                self.declare(Fact(arrival_location=arrival_location, arriveCRS='ABW'))
+                self.declare(Fact(departure_date=departure_date))
+                self.declare(Fact(leaving_time=departure_time))
+                self.declare(Fact(return_or_not=returning))
+                self.declare(Fact(return_date=return_date))
+                self.declare(Fact(return_time=return_time))
+                print(engine.facts)
+                break
+            else:                                           # should be in departure AND arrival AND depart_date AND depart_time AND returning AND return_date AND return_time format
                 print("Please enter a suitable query.")
 
-    @Rule(Fact(query='delay'))
-    def delay_convo(self):
-        print("What station are you at now?")
+    @Rule(Fact(queryType='help'))
+    def ask_help_type(self):
+        print("What would you like help with?")
+        helpChoice = input()
+        if helpChoice in ['cancel', 'change', 'booking']:
+            self.declare(Fact(helpType=helpChoice))
+        else:
+            print("Sorry, I did not understand that.")
 
-    @Rule(Fact(query='help'))
-    def help_convo(self):
-        print("Changing or cancelling ticket")
+    @Rule(Fact(queryType=L('ticket') | L('delay')))
+    def ask_departure_station(self):
+        print("Where are you departing from?")
+        while True:
+            departure_location = input()  # input string
+            conn = sqlite3.connect(r'..\data\db.sqlite')
+            c = conn.cursor()
+            c.execute("SELECT crs FROM stations WHERE name=:location", {'location': departure_location})
+            departCRS = c.fetchone()
+            if departCRS is None:
+                print("Please enter a valid station.")
+                continue
+            self.declare(Fact(departure_location=departure_location, departCRS=departCRS[0]))
+            conn.close()
+            break
 
-    @Rule(Fact(query='ticket'))
-    def ticket_convo(self):
-        print("Where are you departing from?")  # TODO
-        departure_location = input()
-        self.declare(Fact(departure_location=departure_location))
+    @Rule(Fact(departure_location=W()))
+    def ask_arrival_station(self):
+        print("Where is your destination?")
+        while True:             #TODO could redo this part to merge departure method and arrival method as they are the same
+            arrival_location = input()  # input string
+            conn = sqlite3.connect(r'..\data\db.sqlite')
+            c = conn.cursor()
+            c.execute("SELECT crs FROM stations WHERE name=:location", {'location': arrival_location})
+            arriveCRS = c.fetchone()
+            if arriveCRS is None:
+                print("Please enter a valid station.")
+                continue
+            self.declare(Fact(arrival_location=arrival_location, arriveCRS=arriveCRS[0]))
+            conn.close()
+            break
 
-        print("Where is your destination?")  # TODO
-        chosenArrival = input()
-        self.declare(Fact(arrival_location=chosenArrival))
+    @Rule(Fact(departure_location=MATCH.departure_location), Fact(arrival_location=MATCH.arrival_location),
+          Fact(queryType='delay'))
+    def ask_time_delayed(self, departure_location, arrival_location):
+        print("How long were you delayed by?")
+        delayedTime = input()  # input integer in minutes? maybe add way to convert hours into mins for longer delays
 
+        print("time delayed:", delayedTime)
+        print("departure location:", departure_location)
+        print("arrival_location:", arrival_location)
+        # TODO use prediction model here
+        # self.declare(Fact(delay_time=delayedTime))  may need to declare delay time fact?
+        # prediction_model(departure_location, arrival_location, delayedTime)
+        print(engine.facts)  # TODO reset conversation, remove print statement later
+
+    @Rule(Fact(arrival_location=W()), Fact(queryType=L('ticket')))
+    def ask_depart_date(self):
         print("What date are you leaving?")  # TODO plan nlp does the job in figuring out date, must leave it in
-        while True:  # YYYY-MM-DD format. then datetime.date class gets filtered into the fact base
+        while True:
             try:
-                dateChoice = input()  # cant accept dates in the past or out of bounds months/days/years
-                year, month, day = map(int, dateChoice.split('-'))
-                chosenDate = date(year, month, day)
-                if date.today() <= chosenDate:
-                    self.declare(Fact(departure_date=chosenDate))
+                dateChoice = input()  # input YYYY/MM/DD
+                year, month, day = map(int, dateChoice.split('-'))  # cant accept dates in the past or out of bounds months/days/years
+                departure_date = date(year, month, day)
+                if date.today() <= departure_date:
+                    self.declare(Fact(departure_date=departure_date))
                     break
                 else:
                     print("Please enter a date that is %s or later." % date.today())
             except ValueError:
                 print("Please enter a valid date.")
 
+    @Rule(Fact(departure_date=W()), Fact(departure_date=MATCH.departure_date))
+    def ask_depart_time(self, departure_date):
         print("What time are you leaving?")  # read as 24hr clock
         while True:
             try:
                 timeEntry = input()
                 hour, minute = map(int, timeEntry.split(':'))
-                chosenTime = time(hour, minute)
+                departure_time = time(hour, minute)
                 now = datetime.now()
                 current_hour_minute = time(now.hour, now.minute)
-                if date.today() == chosenDate and chosenTime < current_hour_minute:  # if booking is on same day, check if time entered is past current time
+                if date.today() == departure_date and departure_time < current_hour_minute:  # if booking is on same day, check if time entered is past current time
                     print("Please enter a time after %s" % current_hour_minute)
                     continue
                 else:
-                    self.declare(Fact(leaving_time=chosenTime))
+                    self.declare(Fact(leaving_time=departure_time))
                     break
             except ValueError:
                 print("Please enter a valid time.")
 
-        print(
-            "Are you planning to return?")  # TODO this is optional whether the customer would like to return. yes or no question
+    @Rule(Fact(leaving_time=W()))
+    def ask_return(self):
+        print("Are you planning to return?")
         while True:
             ans = input()
             if ans == 'yes':
-                print("What date are you returning?")  # TODO
-                while True:
-                    try:
-                        return_date = input()  # cant accept dates in the past or out of bounds months/days/years
-                        year, month, day = map(int, return_date.split('-'))
-                        chosenReturnDate = date(year, month, day)
-                        if chosenDate <= chosenReturnDate:
-                            self.declare(Fact(return_date=chosenDate))
-                            break
-                        else:
-                            print("Please enter a date that is %s or later." % chosenDate)
-                    except ValueError:
-                        print("Please enter a valid date.")
-
-                print("What time would you like to return?")
-                while True:
-                    return_time = input()
-                    hour, minute = map(int, return_time.split(':'))
-                    chosenReturnTime = time(hour, minute)
-                    now = datetime.now()
-                    current_hour_minute = time(now.hour, now.minute)
-                    if chosenDate == chosenReturnDate and chosenReturnTime < chosenTime:  # if booking is on same day, check if time entered is past current time
-                        print("Please enter a time after %s" % chosenTime)
-                        continue
-                    else:
-                        self.declare(Fact(return_time=chosenReturnTime))
-                        break
                 self.declare(Fact(return_or_not=ans))
                 break
             elif ans == 'no':
                 self.declare(Fact(return_or_not=ans))
+                self.declare(Fact(return_date=' '))
+                self.declare(Fact(return_time=' '))
                 break
             else:
                 print("Sorry I did not understand that.")
 
-    @Rule(Fact(return_or_not='no'),
-          Fact(departure_location=MATCH.departure_location), Fact(arrival_location=MATCH.arrival_location),
-          Fact(departure_date=MATCH.departure_date), Fact(leaving_time=MATCH.leaving_time)
+    @Rule(Fact(return_or_not='yes'), Fact(departure_date=MATCH.departure_date))
+    def ask_return_date(self, departure_date):
+        print("What date are you returning?")
+        while True:
+            try:
+                return_date = input()  # cant accept dates in the past or out of bounds months/days/years
+                year, month, day = map(int, return_date.split('-'))
+                chosenReturnDate = date(year, month, day)
+                if departure_date <= chosenReturnDate:
+                    self.declare(Fact(return_date=chosenReturnDate))
+                    break
+                else:
+                    print("Please enter a date that is %s or later." % departure_date)
+            except ValueError:
+                print("Please enter a valid date.")
+
+    @Rule(Fact(return_date=MATCH.return_date), Fact(departure_date=MATCH.departure_date),
+          Fact(leaving_time=MATCH.leaving_time))
+    def ask_return_time(self, return_date, departure_date, leaving_time):
+        print("What time would you like to return?")
+        while True:
+            return_time = input()
+            hour, minute = map(int, return_time.split(':'))
+            chosenReturnTime = time(hour, minute)
+            if departure_date == return_date and chosenReturnTime < leaving_time:  # if booking is on same day, check if time entered is past current time
+                print("Please enter a time after %s" % leaving_time)
+                continue
+            else:
+                self.declare(Fact(return_time=chosenReturnTime))
+                break
+
+    @Rule(Fact(return_or_not=MATCH.return_or_not),
+          Fact(departure_location=MATCH.departure_location, departCRS=MATCH.departCRS),
+          Fact(arrival_location=MATCH.arrival_location, arriveCRS=MATCH.arriveCRS),
+          Fact(departure_date=MATCH.departure_date), Fact(leaving_time=MATCH.leaving_time),
+          Fact(return_date=MATCH.return_date), Fact(return_time=MATCH.return_time)
           )
-    def confirmation_no_return(self, departure_location, arrival_location, departure_date, leaving_time):
+    def ask_confirmation(self, return_or_not, departure_location, departCRS,
+                         arrival_location, arriveCRS, departure_date, leaving_time,
+                         return_date, return_time):
         print("Please confirm your booking..."
               "\nDeparture datetime: ", departure_date, "at", leaving_time,
               "\nDeparting from: ", departure_location,
               "\nArriving at: ", arrival_location)
-        print("Would you like to book another ticket?")
-
-    @Rule(Fact(return_or_not='yes'),
-          Fact(departure_location=MATCH.departure_location), Fact(arrival_location=MATCH.arrival_location),
-          Fact(departure_date=MATCH.departure_date), Fact(leaving_time=MATCH.leaving_time),
-          Fact(return_date=MATCH.return_date), Fact(return_time=MATCH.return_time)
-          )
-    def confirmation_return(self, departure_location, arrival_location, departure_date, leaving_time,
-                            return_date, return_time):
-        print("Please confirm your booking..."
-              "\nDeparture datetime: ", departure_date, "at", leaving_time,
-              "\nDeparting from: ", departure_location,
-              "\nArriving at: ", arrival_location,
-              "\nReturning datetime: ", return_date, "at", return_time)
+        if return_or_not == 'yes':
+            print("Returning datetime: ", return_date, "at", return_time)
         print("Is this correct?")
         while True:
-            scape_or_not = input()
-            if scape_or_not == 'yes':
+            ans = input()
+            if ans == 'yes':
+                print("CRS CODES BELONG HERE, DEPARTURE CRS:", departCRS, "ARRIVAL CRS:", arriveCRS)
 
-                print("Would you like to book another ticket?")
-            elif scape_or_not == 'no':
-                pass
+                print("SCRAPING...")
+                self.declare(Fact(correct_booking=ans))
+                break
+            elif ans == 'no':
+                self.declare(Fact(correct_booking=ans))
+                break
+            else:
+                print("Sorry, I did not understand that.")
+
+    @Rule(Fact(correct_booking='no'))
+    def ask_adjustment(self):
+        print("What would you like to adjust?")
+        while True:
+            ticketInfo = input()
+                                    #TODO use modify to adjust ticket information
+
+    @Rule(Fact(correct_booking='yes'))
+    def end_query(self):
+        print("Is there anything else I can help you with?")
+        while True:
+            ans = input()
+            if ans in ['ticket', 'delay', 'help']:
+                engine.reset()
+                engine.declare(Fact(queryType=ans))
+                engine.run()
+            elif ans == 'no':
+                engine.reset()          # decided to have the engine to be reset. not sure what else to do
+                engine.run()
+            else:
+                print("Sorry, I did not understand that.")
 
 
 engine = Chatbot()
-engine.reset()  # Prepare the engine for the execution.
-engine.run()  # Run it
+engine.reset()
+engine.run()
