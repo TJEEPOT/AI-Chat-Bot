@@ -13,6 +13,9 @@ History : 01/01/2021 - v1.0 - Created project file
           14/01/2021 - v2.2 - Connected SQLite database to engine for validation of CRS code
           15/01/2021 - v2.3 - Conversation now loops to answer more than one query
           15/01/2021 - v2.4 - Immediately skips to confirmation of ticket if all information is provided at once
+          15/01/2021 - v2.5 - Removed duplicate code when querying user for departure/arrival location
+          16/01/2021 - v2.6 - End user can adjust their ticket information if input was incorrect
+
 """
 import sqlite3
 from datetime import date, time, datetime
@@ -44,7 +47,7 @@ class Chatbot(KnowledgeEngine):
                 departure_location, arrival_location, departure_date, departure_time, \
                 returning, return_date, return_time = queryChoice.split(',')                #example: Forest Gate,Abbey Wood,2021-09-09,13:00,yes,2021-09-09,21:00
                 self.declare(Fact(departure_location=departure_location, departCRS='FOG'))  #TODO must figure out how to validate this part easily
-                self.declare(Fact(arrival_location=arrival_location, arriveCRS='ABW'))
+                self.declare(Fact(arrival_location=arrival_location, arriveCRS='ABW'))      #TODO consult Sam
                 self.declare(Fact(departure_date=departure_date))
                 self.declare(Fact(leaving_time=departure_time))
                 self.declare(Fact(return_or_not=returning))
@@ -65,34 +68,24 @@ class Chatbot(KnowledgeEngine):
             print("Sorry, I did not understand that.")
 
     @Rule(Fact(queryType=L('ticket') | L('delay')))
-    def ask_departure_station(self):
+    def ask_stations(self):
+        ask_departure = True
         print("Where are you departing from?")
         while True:
-            departure_location = input()  # input string
+            location = input()  # input string
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
-            c.execute("SELECT crs FROM stations WHERE name=:location", {'location': departure_location})
-            departCRS = c.fetchone()
-            if departCRS is None:
+            c.execute("SELECT crs FROM stations WHERE name=:location", {'location': location})
+            crs = c.fetchone()
+            if crs is None:
                 print("Please enter a valid station.")
                 continue
-            self.declare(Fact(departure_location=departure_location, departCRS=departCRS[0]))
-            conn.close()
-            break
-
-    @Rule(Fact(departure_location=W()))
-    def ask_arrival_station(self):
-        print("Where is your destination?")
-        while True:             #TODO could redo this part to merge departure method and arrival method as they are the same
-            arrival_location = input()  # input string
-            conn = sqlite3.connect(r'..\data\db.sqlite')
-            c = conn.cursor()
-            c.execute("SELECT crs FROM stations WHERE name=:location", {'location': arrival_location})
-            arriveCRS = c.fetchone()
-            if arriveCRS is None:
-                print("Please enter a valid station.")
+            if ask_departure:
+                self.declare(Fact(departure_location=location, departCRS=crs[0]))
+                ask_departure = False
+                print("Where is your destination?")
                 continue
-            self.declare(Fact(arrival_location=arrival_location, arriveCRS=arriveCRS[0]))
+            self.declare(Fact(arrival_location=location, arriveCRS=crs[0]))
             conn.close()
             break
 
@@ -227,7 +220,18 @@ class Chatbot(KnowledgeEngine):
         print("What would you like to adjust?")
         while True:
             ticketInfo = input()
-                                    #TODO use modify to adjust ticket information
+            if ticketInfo == 'station':         # redo station location
+                print(engine.facts)#TODO use reset engine
+                engine.reset()
+
+            elif ticketInfo == 'return':
+                pass
+            elif ticketInfo == 'date':
+                pass
+            elif ticketInfo == 'time':
+                pass
+            else:
+                print("Sorry, I did not understand that.")
 
     @Rule(Fact(correct_booking='yes'))
     def end_query(self):
