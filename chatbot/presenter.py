@@ -15,6 +15,7 @@ from flask import Flask, render_template, request, jsonify, make_response
 import model.scraper as scraper
 import speech_recognition as sr
 from chatbot.nlp import process_user_input
+from flask_socketio import SocketIO, send
 
 __author__     = "Sam Humphreys"
 __credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
@@ -25,21 +26,22 @@ __status__     = "Development"  # "Development" "Prototype" "Production"
 
 
 app = Flask(__name__)
-
+app.config['SECRET_KEY'] = "iamasecretkey"
+socketio = SocketIO(app)
 
 @app.route("/")
 def home():
     return render_template('interface.html')
 
 
-@app.route("/get_reply", methods=['POST'])
-def get_reply():
-    if request.method == 'POST':
-        user_input = request.get_json()
-        # print(user_input)
-        response = make_response(jsonify({"message": __generate_response(user_input)}), 200)
-        return response
-
+# @app.route("/get_reply", methods=['POST'])
+# def get_reply():
+#     if request.method == 'POST':
+#         user_input = request.get_json()
+#         # print(user_input)
+#         response = make_response(jsonify({"message": __generate_response(user_input)}), 200)
+#         return response
+#
 
 # main logic function calling other modules
 def __generate_response(user_input):
@@ -82,5 +84,23 @@ def __process_speech(user_audio):
         print(e)
 
 
+
+@socketio.on('connect')
+def user_connected():
+
+    greeting_message = "Hello"          # plug in to random responses
+    
+    send(greeting_message)
+@socketio.on('message')
+def recieve_message(msg):
+    print("Message:" + msg)
+
+    # send to nlp
+    # send to RE
+
+    upper_message = str(msg).upper()
+    send(upper_message)
+
+
 if __name__ == "__main__":
-    app.run()
+    socketio.run(app)

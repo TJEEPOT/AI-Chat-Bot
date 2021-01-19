@@ -2,6 +2,17 @@ const botName = "TransportBot";
 const recordTimeout = 20000;
 var useTextToSpeech = Boolean(false);
 var chosenVoice = null; // set on load to avoid problems with async function
+var serverIp = "http://127.0.0.1:5000"
+var socket = io.connect(serverIp)
+
+
+
+
+socket.on('message', function(msg){
+    addMessage(msg,"bot-message",botName)
+    if (useTextToSpeech){readMessage(msg)}
+})
+
 
 
 document.getElementById("message-input-box").addEventListener('keyup', function (e){
@@ -69,27 +80,34 @@ window.addEventListener('DOMContentLoaded', ()=>{
  * Retrieves user input-box and gets the response from the chatbot. Adds both to the chat window using addMessage
  *
  */
+// function submit(){
+//             inputBox = document.getElementById("message-input-box");
+//             userMessage = inputBox.value
+//             if (userMessage !== ""){
+//             addMessage(inputBox.value, "human-message", "You")
+//             response = fetch('get_reply', {
+//               method: 'post',
+//               headers: {
+//                 'Content-Type': 'application/json'
+//               },
+//               body: JSON.stringify(userMessage)
+//             }).then(function (response){
+//                 response.json().then(function (data){
+//                     addMessage(data.message, "bot-message", botName);
+//                     if (useTextToSpeech){readMessage(data.message);};
+//                 })
+//             });
+//             inputBox.value = "";
+//             }
+// }
 function submit(){
-            inputBox = document.getElementById("message-input-box");
-            userMessage = inputBox.value
-            if (userMessage !== ""){
-            addMessage(inputBox.value, "human-message", "You")
-            response = fetch('get_reply', {
-              method: 'post',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(userMessage)
-            }).then(function (response){
-                response.json().then(function (data){
-                    addMessage(data.message, "bot-message", botName);
-                    if (useTextToSpeech){readMessage(data.message);};
-                })
-            });
-            inputBox.value = "";
-            }
+             inputBox = document.getElementById("message-input-box");
+             userMessage = inputBox.value
+             if (userMessage !== "") {
+                 addMessage(inputBox.value, "human-message", "You")
+             }
+             socket.send(userMessage)
 }
-
 /**
  *
  * Reads a message using text-to-speech
