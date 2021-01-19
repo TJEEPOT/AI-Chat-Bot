@@ -36,7 +36,38 @@ class MyTestCase(unittest.TestCase):
             "raw_message": "book tickets"
         }
         self.assertDictEqual(expected_output, process_user_input(text_example))
-        pass
+        text_example = "late"
+        expected_output = {
+            "intent": "delay",
+            "from_station": "",
+            "from_crs": "",
+            "to_station": "",
+            "to_crs": "",
+            "outward_date": "",
+            "outward_time": "",
+            "return_date": "",
+            "return_time": "",
+            "confirmation": "",
+            "no_category": [],
+            "raw_message": "late"
+        }
+        self.assertDictEqual(expected_output, process_user_input(text_example))
+        text_example = "help"
+        expected_output = {
+            "intent": "help",
+            "from_station": "",
+            "from_crs": "",
+            "to_station": "",
+            "to_crs": "",
+            "outward_date": "",
+            "outward_time": "",
+            "return_date": "",
+            "return_time": "",
+            "confirmation": "",
+            "no_category": [],
+            "raw_message": "help"
+        }
+        self.assertDictEqual(expected_output, process_user_input(text_example))
 
     def test_process_depart(self):
         text_example = "norwich"

@@ -33,8 +33,8 @@ def process_user_input(user_input):
     station_crs = []
     station_pairs = {}
     book_ticket = ["book", "TICKET", "travel", "go"]        # maybe get from db
-    get_help = []
-    delays = []
+    get_help = ["help", "assistance"]
+    delays = ["delay", "late", "behind schedule"]
     confirm_yes = ["correct", "yes", "yep", "y"]
     confirm_no = ["incorrect", "no", "wrong"]
 
