@@ -12,7 +12,8 @@ __email__      = "s.humphreys@uea.ac.uk"
 __status__     = "Development"  # "Development" "Prototype" "Production"
 
 
-def process_user_input(user_input):
+
+def parse_user_input(user_input):
 
     # variables
     processed_input = {

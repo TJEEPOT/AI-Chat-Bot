@@ -14,7 +14,7 @@ History : 02/01/2021 - v1.0 - Complete basic implementation.
 from flask import Flask, render_template, request, jsonify, make_response
 import model.scraper as scraper
 import speech_recognition as sr
-from chatbot.nlp import process_user_input
+from chatbot.nlp import parse_user_input
 from flask_socketio import SocketIO, send
 
 __author__     = "Sam Humphreys"
@@ -34,37 +34,15 @@ def home():
     return render_template('interface.html')
 
 
-# @app.route("/get_reply", methods=['POST'])
-# def get_reply():
-#     if request.method == 'POST':
-#         user_input = request.get_json()
-#         # print(user_input)
-#         response = make_response(jsonify({"message": __generate_response(user_input)}), 200)
-#         return response
-#
-
-# main logic function calling other modules
-def __generate_response(user_input):
-    #
-    # CALL TO NLP WOULD GO HERE
-    # train_details = nlp.process(user_input)
-    #
-    # try:
-    #     dep, arr, date, time = user_input.split(", ")
-    #     fare, time, url = scraper.single_fare(dep, arr, date, time)
-    # except ValueError:
-    #     return "Incorrect input, please try again."
-    # return "The cheapest fare is {} departing at {}. Book this ticket at {}".format(fare, time, url)
-    #
-
-    bot_response = process_user_input(user_input)['raw_message']    #testing nlp
-    # need to send to the RE here
-    return bot_response
-
-
-
 @app.route("/get_audio", methods=['POST'])
 def get_audio():
+    """Gets audio data from the client to process into text
+
+
+
+    :returns: Strings for departure and return ticket prices, departure and return times and booking url
+    :raises ValueError: if validation of date or time, or of page output fails
+    """
     if request.method == 'POST':
         audio_file = request.files['file']
         words = __process_speech(audio_file)
@@ -83,23 +61,22 @@ def __process_speech(user_audio):
     except Exception as e:
         print(e)
 
-
+def send_message(bot_response):
+    send(bot_response)
 
 @socketio.on('connect')
 def user_connected():
-
+    # do stuff here if we want a greeting message
     greeting_message = "Hello"          # plug in to random responses
-    
     send(greeting_message)
+
+
 @socketio.on('message')
-def recieve_message(msg):
-    print("Message:" + msg)
-
-    # send to nlp
+def recieve_message(user_input):
+    print("User message:" + user_input)
+    # send to NLP
+    nlp_response = parse_user_input(user_input)
     # send to RE
-
-    upper_message = str(msg).upper()
-    send(upper_message)
 
 
 if __name__ == "__main__":

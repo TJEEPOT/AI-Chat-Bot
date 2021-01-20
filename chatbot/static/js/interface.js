@@ -106,7 +106,8 @@ function submit(){
              if (userMessage !== "") {
                  addMessage(inputBox.value, "human-message", "You")
              }
-             socket.send(userMessage)
+             socket.send(userMessage);
+              inputBox.value = "";
 }
 /**
  *

@@ -1,6 +1,6 @@
 import unittest
 import datetime
-from chatbot.nlp import process_user_input
+from chatbot.nlp import parse_user_input
 
 
 class MyTestCase(unittest.TestCase):
@@ -35,7 +35,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [],
             "raw_message": "book tickets"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
         text_example = "late"
         expected_output = {
             "intent": "delay",
@@ -51,7 +51,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [],
             "raw_message": "late"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
         text_example = "help"
         expected_output = {
             "intent": "help",
@@ -67,7 +67,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [],
             "raw_message": "help"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
 
     def test_process_depart(self):
         text_example = "norwich"
@@ -85,7 +85,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": ["Norwich"],
             "raw_message": "norwich"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
         pass
 
     def test_process_destination(self):
@@ -104,7 +104,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": ["London Liverpool Street"],
             "raw_message": "london liverpool street"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
         pass
 
     def test_process_date_depart(self):
@@ -125,7 +125,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [expected_outward_date,expected_outward_time],
             "raw_message": "17/01/2021"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
         pass
 
     def test_process_time_depart(self):
@@ -147,7 +147,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [expected_outward_date,expected_outward_time],
             "raw_message": "14:00"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
         pass
 
     def test_process_is_returning(self):
@@ -166,7 +166,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [],
             "raw_message": "yes"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
         pass
 
     def test_process_return_date(self):
@@ -187,7 +187,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [expected_return_date,expected_return_time],
             "raw_message": "18/01"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
         pass
 
     def test_process_return_time(self):
@@ -208,7 +208,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [expected_return_date,expected_return_time],
             "raw_message": "7pm"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
         pass
 
     def test_process_confirm_correct(self):
@@ -227,7 +227,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [],
             "raw_message": "no"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
         pass
 
     def test_process_input_long(self):
@@ -250,7 +250,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [],
             "raw_message": "I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes"
         }
-        self.assertDictEqual(expected_output, process_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
 
 
 if __name__ == '__main__':
