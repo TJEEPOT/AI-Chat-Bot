@@ -7,6 +7,8 @@ Module  : CMP6040-A - Artificial Intelligence, Assignment 2
 File    : prediction_model.py
 Date    : Tuesday 05 January 2021
 History : 05/01/2020 - v1.0 - Create project file
+          12/01/2020 - v1.2 - Completed all functions to load DARWIN data from CSV and save to db
+          20/01/2020 - v1.3 - Wrote function to handle HSP data from scraper
 
 """
 import os
@@ -16,6 +18,7 @@ from datetime import datetime, timedelta
 from data import services
 import re
 import sqlite3
+import model.prediction_model as model
 
 __author__     = "Martin Siddons"
 __credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
@@ -39,60 +42,77 @@ dep_at:  Actual Time of Departure, the time the train actually departed the stat
 """
 
 
-def raw(table):
+def raw(table, data_source):
     r"""Pull data from csv files, process for model and save to given table in given db
 
     Files are taken from \data\scraped and processed, then after writing are moved to \data\scraped\processed.
-
-    :param string table:   Table in DB to insert data into (will be created if it doesn't already exist)
-    :raises sqlite3.Error: If script can not connect to db
+    :
+    :param str data_source: Either "DARWIN" (a51/rdg) or "HSP" depending on data source.
+    :param str table:       Table in DB to insert data into (will be created if it doesn't already exist)
+    :raises sqlite3.Error:  If script can not connect to db
     """
+    network = services.get_network("ga_intercity")
+    valid_tpl = network.get_all_stations()  # only get data for stations in the network
     os.chdir(r".\data\scraped")
     for file in glob.glob("*.csv"):
-        csv_data = __read_from_csv(file)  # warning: this function removes entries you might want to keep.
+        if data_source == "DARWIN":
+            csv_data = __read_darwin_from_csv(file, valid_tpl)
+        elif data_source == "HSP":
+            csv_data = __read_hsp_from_csv(file, valid_tpl)
+        else:
+            print(data_source, "is not a valid data source. Currently reading only HSP and DARWIN formatted data.")
+            return
         # could add weather data here
 
         train_data = []
+        prev_delay = 0  # track what the delay was at the last station
         for i in range(0, len(csv_data)-1):  # skip the final row since it is None
             entry = csv_data[i]
-            next_entry = csv_data[i+1]
-            if entry[0] != next_entry[0]:  # check if we're on the last station (rid code change) if so, move on.
-                continue  # we don't record the final station since there's no delay between it and the station after.
-            source, date, delay = __entry_to_query(entry)
+            source, date, delay = entry_to_query(entry)
+            delay_change = delay - prev_delay
 
-            dest     = next_entry[1]
-            network  = services.build_ga_intercity()
-            path     = network.find_path(source, dest)
-            stn_from = path[0]
-            stn_to   = path[1]
-            processed_entry = __query_to_input(stn_from, stn_to, date, delay)
-            # Need to look for cancelled trains then add missing stops here perhaps, then process all stops in one go.
+            next_entry = csv_data[i + 1]
+            if entry[0] != next_entry[0]:  # if we're on the last station (rid code change) process with no destination
+                prev_delay = 0  # ready for the next rid
+                stn_from   = stn_to = network.get_station(source)
+            else:
+                # print(entry[0])
+                prev_delay = delay
+                dest       = next_entry[1]
+                path       = network.find_path(source, dest)
+                stn_from   = path[0]
+                stn_to     = path[1]
+
+            processed_entry = query_to_input(stn_from, stn_to, date)
+            processed_entry.append(delay)
+            processed_entry.append(delay_change)
+            # Might want to look for cancelled trains then add missing stops here, then process rid in one go.
             train_data.append(processed_entry)
 
         os.chdir(r"..")
         written = __write_to_db(table, train_data)
+        os.chdir(r".\scraped")
         print("processed", written, "entries in file", file)
-        # path = os.path.dirname(os.path.abspath(__file__))  # this is probably screwing things up, do it at the end
-        # os.replace(r"{}\scraped\{}".format(path, file), r"{}\scraped\processed\{}".format(path, file))
+
+    # move all the files into \processed\ as a batch. This breaks if done on each iteration of previous loop instead.
+    for file in glob.glob("*.csv"):
+        path = os.path.dirname(os.path.abspath(__file__))
+        os.replace(r"{}\scraped\{}".format(path, file), r"{}\scraped\processed\{}".format(path, file))
 
 
-def __read_from_csv(file):
-    """Reads the provided train data CSV file and removes unneeded columns and rows.
+def __read_darwin_from_csv(file, valid_tpl):
+    """Reads the provided DARWIN data CSV file and removes unneeded columns and rows.
 
     :param str file: Name of file to be processed
 
     :rtype: list[list[str]]
     :return: list of lists matching the processed rows and columns of the given CSV, with unneeded info removed
     """
-    valid_tpl = ["NRCH", "DISS", "STWMRKT", "NEEDHAM", "IPSWICH", "MANNGTR", "CLCHSTR", "MRKSTEY", "KELVEDN",
-                 "WITHAME", "HFLPEVL", "CHLMSFD", "INGTSTN", "SHENFLD", "BRTWOOD", "HRLDWOD", "GIDEAPK",
-                 "ROMFORD", "CHDWLHT", "GODMAYS", "SVNKNGS", "ILFORD", "MANRPK", "FRSTGT", "MRYLAND", "STFD",
-                 "BTHNLGR", "LIVST"]
     data = []
     with open(file) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
-            if row[1] not in valid_tpl:  # skip every entry that isn't for a station listed above
+            if row[1] not in valid_tpl:  # skip every entry that isn't for a station listed in valid_tpl
                 continue
             # delete columns pta, ptd, arr_wet, arr_atRemoved, pass_wet, pass_atRemoved, dep_wet, dep_atRemoved,
             # cr_code, lr_code
@@ -104,7 +124,47 @@ def __read_from_csv(file):
     return data
 
 
-def __read_weather_data():
+def __read_hsp_from_csv(file, valid_tpl):
+    """Reads the provided HSP data CSV file and formats it to the same design as DARWIN.
+
+    :param str file: Name of file to be processed
+
+    :rtype: list[list[str]]
+    :return: list of lists matching the processed rows and columns of the given CSV, with darwin info added
+    """
+    data = []
+    with open(file) as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        for row in csv_reader:
+            # transform crs to tpl
+            crs = row[1]
+            conn = __connect_to_db()
+            cur = conn.cursor()
+            cur.execute(""" SELECT tpl FROM stations WHERE crs=? """, (crs,))
+            tpl = cur.fetchone()
+            if tpl is None:
+                continue
+
+            row[1] = tpl[0]
+            if row[1] is None or row[1] not in valid_tpl:  # skip every entry that isn't for a station in the tpl list
+                continue
+            # format time to DARWIN time format (insert colons)
+            for i in range(2, 6):
+                if row[i] != "":
+                    row[i] = row[i][:2] + ":" + row[i][2:]
+
+            # format the file to match DARWIN format
+            temp = row[2]; row[2] = row[3]; row[3] = temp  # swap ptd and pta
+            row.insert(3, "")  # pad ptd out one place to match DARWIN wtd position
+            row.insert(5, ""); row.insert(5, ""); row.insert(5, "")  # pad out dep_at and arr_at
+            row.insert(9, "")  # pad out arr_at
+            temp = row[8]; row[8] = row[10]; row[10] = temp  # swap dep_at and arr_at
+            data.append(row)
+        data.append([None, None])  # add an extra row to ensure there is no issues indexing
+    return data
+
+
+def __read_weather_data():  # TBA one day.
     pass
 
 
@@ -118,22 +178,27 @@ def user_to_query(source, destination, delay):
     :rtype: int
     :return: the amount of minutes the user will be delayed once they get to their final destination
     """
-    now        = datetime.now()
-    network    = services.build_ga_intercity()
-    path       = network.find_path(source, destination)
+    now     = datetime.now()
+    network = services.get_network("ga_intercity")
+    path    = network.find_path(source, destination)
+    path.append(path[-1])
+
     train_data = []
     for i in range(0, len(path)):
-        stn_from = path[0]
-        stn_to   = path[1]
-        processed_entry = __query_to_input(stn_from, stn_to, now, delay)
+        stn_from = path[i]
+        stn_to   = path[i+1]
+        processed_entry = query_to_input(stn_from, stn_to, now)
         train_data.append(processed_entry)
 
+    total_delay = int(delay)
     # Put data into the model here
-    total_delay = 0
+    for train in train_data:
+        total_delay += model.use_model(train, total_delay, network)
+
     return total_delay
 
 
-def __entry_to_query(entry):
+def entry_to_query(entry):
     """Takes a line (entry) from the processed CSV file and forms a query (data matching one station input from user)
 
     :param list[str] entry: list of data: rid, tpl, wta, wtp, wtd, arr_et, pass_et, dep_et, arr_at, pass_at, dep_at
@@ -160,25 +225,28 @@ def __entry_to_query(entry):
 
     delay_mins = 30  # default: train was cancelled, delay is 30 minutes (waiting for the next train)
     if act_time != "":
-        delta = datetime.strptime(act_time, "%H:%M") - delay_time
-        delay_mins = int(delta.total_seconds() / 60)
+        delay_mins = __find_delay(act_time, delay_time)
     elif est_time != "":
-        delta = datetime.strptime(est_time, "%H:%M") - delay_time
-        delay_mins = int(delta.total_seconds() / 60)
+        delay_mins = __find_delay(est_time, delay_time)
+
+    # deal with cases where delay may still be wildly out for whatever reason, since we can't fix them.
+    if delay_mins > 30:
+        delay_mins = 30
+    elif delay_mins < -30:
+        delay_mins = -30
 
     return entry[1], dt, delay_mins
 
 
-def __query_to_input(source, destination, dt, delay):
-    """Processes a trip between two adjacent stops and builds model inputs
+def query_to_input(source, destination, dt):
+    """Processes a trip between two adjacent stops and builds data suitable for model inputs
 
-    :param Station source:      object of the station to record
-    :param Station destination: object of the next station on the network (either stopping or passing)
-    :param datetime dt:     date and time at this point of the journey
-    :param int delay:       current delay of the journey in minutes (rounded down)
+    :param services.Station source:      object of the station to record
+    :param services.Station destination: object of the next station on the network (either stopping or passing)
+    :param datetime dt:                  date and time at this point of the journey
 
-    :rtype: list[str, str, int, int, int, int, int]
-    :return: Record entry of form [source, destination, day_of_week, weekday, off_peak, hour_of_day, delay]
+    :rtype: list[str, str, int, int, int, int]
+    :return: Record entry of form [source, destination, day_of_week, weekday, off_peak, hour_of_day]
     """
     day_of_week = dt.isoweekday()  # 1-7
     weekday = 1
@@ -187,17 +255,16 @@ def __query_to_input(source, destination, dt, delay):
     hour_of_day = dt.hour
 
     # find if the train is a peak-service by building the network and checking the peak times. Beyond the demo,
-    # this should really take an argument for a given network and call that network's function.
+    # this should really take an argument for a given network and call that network's function instead.
     time = dt.strftime("%H%M")
-
     off_peak = 1  # true
-    if weekday:
+    if weekday and source != destination:
         peaks = source.get_peak(destination)
         for start, end in peaks:  # for each list of peak times in peak, check if the given time is between them
             if start <= time <= end:
                 off_peak = 0  # false
 
-    return [source.get_id(), destination.get_id(), day_of_week, weekday, off_peak, hour_of_day, delay]
+    return [source.get_id(), destination.get_id(), day_of_week, weekday, off_peak, hour_of_day]
 
 
 def __write_to_db(table, data):
@@ -205,22 +272,22 @@ def __write_to_db(table, data):
 
     :param str table: Name of the table to insert records into - if this doesn't exist, it will be created
     :param data:      A list of records to be added to the database
-    :type data:       list[list[str, str, int, int, int, int, int]]
+    :type data:       list[list[str, str, int, int, int, int, int, int]]
 
     :rtype:  int
     :return: Number of records added to db
     :raises  sqlite3.Error: If db value is invalid
     """
-    conn = connect_to_db()
+    conn = __connect_to_db()
     cur = conn.cursor()
 
     # create table if it doesn't exist
     try:
-        cur.execute("""CREATE TABLE IF NOT EXISTS {} (tpl_from text, tpl_to text, day_of_week integer, weekday integer, 
-                       off_peak integer, hour_of_day integer, delay integer);""".format(table))
+        cur.execute(""" CREATE TABLE IF NOT EXISTS {} (tpl_from text, tpl_to text, day_of_week integer, 
+        weekday integer, off_peak integer, hour_of_day integer, delay integer, delay_change integer );""".format(table))
 
         # insert into table
-        cur.executemany("""INSERT INTO {} VALUES(?,?,?,?,?,?,?)""".format(table), data)
+        cur.executemany(""" INSERT INTO {} VALUES(?,?,?,?,?,?,?,?) """.format(table), data)
         conn.commit()
         conn.close()
     except sqlite3.Error as e:
@@ -239,10 +306,10 @@ def drop_table(table):
     :returns: True if deleted, else false
     :raises   sqlite3.Error: If table can not be dropped
     """
-    conn = connect_to_db()
+    conn = __connect_to_db()
     cur = conn.cursor()
     try:
-        cur.execute("""DROP TABLE {}""".format(table))
+        cur.execute(""" DROP TABLE {} """.format(table))
         conn.commit()
         conn.close()
     except sqlite3.Error as e:
@@ -251,7 +318,7 @@ def drop_table(table):
     return True
 
 
-def connect_to_db():
+def __connect_to_db():
     """Opens and returns a connection to database db or exception if the connection failed
 
     :return: connection to db
@@ -259,12 +326,37 @@ def connect_to_db():
     """
     conn = None
     try:
-        conn = sqlite3.connect(r"..\data\db.sqlite")
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        db_path = os.path.join(base_dir, "db.sqlite")
+        conn = sqlite3.connect(db_path)
     except sqlite3.Error as e:
         print(e)
     return conn
 
 
+def __find_delay(actual, expected):
+    """Helper function to find the difference between actual and expected arrival/passing times.
+
+    :param str actual: Time the train got to the station
+    :param datetime expected: Expected time the train should arrive
+
+    :rtype: int
+    :return: train delay in minutes, rounded down
+    """
+    actual    = datetime.strptime(actual, "%H:%M")
+    day_end   = datetime.strptime("2359", "%H%M")
+    train_end = train_start = datetime.strptime("0400", "%H%M")
+    # check if the train came in after midnight when it was expected before midnight
+    if actual <= train_end and train_start <= expected <= day_end:
+        actual += timedelta(days=1)
+    # check if the train was expected after midnight but came in before midnight
+    elif expected <= train_end and train_start <= actual <= day_end:
+        expected += timedelta(days=1)
+
+    difference = actual - expected
+    return int(difference.total_seconds() / 60)
+
+
 if __name__ == "__main__":
     os.chdir(r"..")
-    raw("model")
+    raw("a", "HSP")  # source either DARWIN or HSP

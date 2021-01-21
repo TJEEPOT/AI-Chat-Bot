@@ -16,6 +16,7 @@ import re
 import requests
 import datetime
 import os
+import csv
 from bs4 import BeautifulSoup
 
 __author__     = "Martin Siddons"
@@ -114,23 +115,53 @@ def historical_trains():
     :rtype: bool
     :return: True if scrape was a success else false.
     """
+    loc_from  = "SRA"  # "SMK" "NRW" "SRA"
+    loc_to    = "SMK"  # "IPS" "LST"
     time_from = "0400"
-    time_to   = "0800"
-    date_from = "2017-01-01"
-    date_to   = "2017-01-05"
-    days      = "WEEKDAY"  # "WEEKDAY" "SATURDAY" "SUNDAY"
+    time_to   = "2359"
+    year      = "2019"
+    days      = "SUNDAY"  # "WEEKDAY" "SATURDAY" "SUNDAY"
 
-    rids = __hsp_metrics(time_from, time_to, date_from, date_to, days)
-    csv_data = [["rid", "crs", "ptd", "pta", "dep_at", "arr_at"]]  # header row
-    for rid in rids:
-        csv_data.append(__hsp_details(rid))
+    month_days = ["31", "28", "31", "30", "31", "30", "31", "31", "30", "31", "30", "31"]
+    months     = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
+    halt = False
 
-    print(csv_data)
-    # save the CSV data to disk
+    for i in range(len(months)):  # doing a whole year at once
+    # for i in range(6, len(months)):
+        date_from = year + "-" + months[i] + "-01"
+        date_to   = year + "-" + months[i] + "-" + month_days[i]
+        print("running scraper for", days, "trains between", date_from, "and", date_to)
+        rids = __hsp_metrics(loc_from, loc_to, time_from, time_to, date_from, date_to, days)
+        if len(rids) <= 10:
+            halt = True
+            print("halting at month", months[i], "only got", len(rids), "RIDs")
+            break
+        else:
+            print("got", len(rids), "rids")
+
+        csv_data = [["rid", "crs", "ptd", "pta", "dep_at", "arr_at"]]  # header row
+        for rid in rids:
+            results = __hsp_details(rid)
+            for entry in results:
+                csv_data.append(entry)
+        print("got", len(csv_data), "entries")
+
+        # save the CSV data to disk
+        df        = date_from.split("-")
+        # filename = "HSP_" + df[0] + "_" + df[1] + "_" + days + "S_" + loc_from + "-" + loc_to + ".csv"
+        filename = "HSP_" + df[0] + "_" + df[1] + "_" + days + "S_LST-NRW.csv"
+
+        with open(r'..\data\scraped\{}'.format(filename), mode="w", newline="") as csv_file:
+            writer = csv.writer(csv_file, delimiter=",", quotechar='"')
+            writer.writerows(csv_data)
+        print("saved to file", filename, "\n")
+    if halt:
+        print("halted processing.")
+        return False
     return True
 
 
-def __hsp_metrics(time_from, time_to, date_from, date_to, days):
+def __hsp_metrics(loc_from, loc_to, time_from, time_to, date_from, date_to, days):
     """Pull JSON from National Rail's HSP metrics datafeed, find all RID codes and return them. This service seems to
     take a while to reply - be cautious as to how much data you wish to have returned.
 
@@ -140,7 +171,7 @@ def __hsp_metrics(time_from, time_to, date_from, date_to, days):
     :param str date_to:   Date to search until, in the form 'YYYY-mm-dd' e.g. '2017-02-01'
     :param str days:      Either 'WEEKDAY', 'SATURDAY' or 'SUNDAY' to search those days.
 
-    :rtype:  set
+    :rtype:  list
     :return: Unique RID codes for all journeys from NRW to LST between the given dates and times.
     """
     """
@@ -154,8 +185,8 @@ def __hsp_metrics(time_from, time_to, date_from, date_to, days):
     headers = {"Content-Type": "application/json"}
     auths = (os.environ.get("HSP_EMAIL"), os.environ.get("HSP_PASSWORD"))  # SET YOUR OWN ENVIRONMENT VARIABLES
     data = {
-        "from_loc": "NRW",
-        "to_loc": "LST",
+        "from_loc": loc_from,
+        "to_loc": loc_to,
         "from_time": time_from,
         "to_time": time_to,
         "from_date": date_from,
@@ -166,15 +197,15 @@ def __hsp_metrics(time_from, time_to, date_from, date_to, days):
     r = requests.post(api_url, headers=headers, auth=auths, json=data)
     json_response = r.json()
 
-    valid_rids = set()
+    valid_rids = []
     services = json_response["Services"]
     for service in services:
         metrics = service["serviceAttributesMetrics"]
         rids = metrics["rids"]
         for rid in rids:
             if rid not in valid_rids:
-                valid_rids.add(rid)
-
+                valid_rids.append(rid)
+    valid_rids.sort()
     return valid_rids
 
 
