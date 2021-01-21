@@ -1,6 +1,10 @@
 # What It Does
 This is an AI Chat Bot which gives details for train tickets, can give estimated arrival times if your train is delayed as well as giving helpful information regarding train services to the user.
 
+# Setup Notes
+Clone this repo and set up your venv. Install pips from requirements.text then run `python -m spacy download 
+en_core_web_sm` to ensure spacy has the correct files.
+
 # Usage Notes
 To start the chatbot, run `python -m chatbot` from terminal inside the main project folder and navigate to 
 http://127.0.0.1:5000/ in your browser.

@@ -10,18 +10,29 @@ File    : Network.py
 Date    : Friday 08 January 2021
 History : 05/01/2020 - v1.0 - Create project file
           11/01/2020 - v1.1 - Finalised Network and Station objects, and intercity function, fully tested.
+          18/01/2020 - v1.2 - Moved network creation code out and replaced intercity function with a fetch from the db.
 """
-from datetime import datetime
+import pickle
+import sqlite3
+import os.path
+import sklearn.neighbors as skl
+
+__author__     = "Martin Siddons"
+__credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
+__maintainer__ = "Martin Siddons"
+__email__      = "m.siddons@uea.ac.uk"
+__status__     = "Prototype"  # "Development" "Prototype" "Production"
 
 
 class Station:
     """Defines a station and relationships between stations (graph vertex)"""
     def __init__(self, station):
-        self.id = station
-        self.connected = {}
+        self.id          = station
+        self.connected   = {}
+        # above is: {Station: {int:peak, KNeighboursClassifier:model, BayesClassifier:model, ANNClassifier:model}}
 
-    def __str__(self):
-        return str(self.id) + ' links to: ' + str([x.id for x in self.connected])
+    # def __str__(self):
+    #     return str(self.id) + ' links to: ' + str([x.id for x in self.connected])
 
     def add_destination(self, destination, peak=None):
         """Connects a given destination on the network to this station
@@ -31,7 +42,14 @@ class Station:
         """
         if peak is None:
             peak = [[]]
-        self.connected[destination] = peak
+        if destination not in self.connected:
+            self.connected[destination] = {}
+        self.connected[destination]["peak"] = peak
+
+    def add_model(self, destination, model_scaler):
+        """ Takes a model of delays between this station and the destination and stores it in the 'connected' dict """
+        name = type(model_scaler[0]).__name__  # get the object's class name
+        self.connected[destination][name] = model_scaler
 
     def edit_destination(self, destination, peak):
         if destination in self.connected:
@@ -55,16 +73,29 @@ class Station:
         """
         if destination is None:
             return None
-        return self.connected[destination]
+        return self.connected[destination]["peak"]
+
+    def get_model(self, destination, model_name):
+        """ returns the requested model for journeys to 'destination'
+
+        :param Station destination: Station object of the destination
+        :param str model_name: Name of the model matching stored key in network
+
+        :return: Model which matches the requested model"""
+        return self.connected[destination][model_name]
 
 
 class Network:
     """Rail network modelled as a Graph data structure"""
-    def __init__(self):
+    def __init__(self, name):
+        self.name = name
         self._rail_line = {}
 
     def __iter__(self):
         return iter(self._rail_line.values())
+
+    def get_name(self):
+        return self.name
 
     def add_station(self, station):
         new_rail = Station(station)
@@ -117,74 +148,137 @@ class Network:
         destination_station = self.get_station(destination)
         if source_station is None or destination_station is None:
             raise ValueError("Station {} or {} does not exist.".format(source, destination))
-        return self._find_path_rec(source_station, destination_station, [])
 
-    def _find_path_rec(self, source, destination, path):
+        path  = []
+        queue = [[source_station]]
+        while queue:
+            path = queue.pop(0)
+            last_station = path[-1]
+            if last_station == destination_station:
+                return path
+            for station in last_station.connected.keys():
+                new_path = list(path)
+                new_path.append(station)
+                queue.append(new_path)
+
+    def __find_path_rec(self, source, destination, path):
         # recursive call to find target. Separated from find_path to allow for validation. Returns list[Station]
         path.append(source)
+        to_visit = []
 
         if source == destination:
-            path.append(destination)
+            # path.append(destination)
             return path
         for station in source.connected.keys():
-            if station not in path:
-                new_path = self._find_path_rec(station, destination, path)
+            to_visit.append(station)
+        if to_visit:
+            next_station = to_visit.pop(0)
+            if next_station not in path:
+                new_path = self.__find_path_rec(next_station, destination, path)
                 if new_path:
                     return new_path
 
+    def append_rails(self, stations, peaks_from, peaks_to):
+        """Helper function to add stations and rails when to a given network when it's being built
 
-def build_ga_intercity():
-    """Uses the Graph class to build a representation of the train
-    stations on the Intercity segment of the Greater Anglia train network
+        :param list[str] stations: list of stations to add rails between
+        :param list[list[str]] peaks_from: start times of peak periods for each station
+        :param list[list[str]] peaks_to:   end times of peak periods for each station
+        """
+        # add connections between stations
+        for i in range(len(stations) - 1):
+            station_peaks = []
+            for j in range(len(peaks_from)):  # iterate for as many peak periods that are given (usually one or two)
+                station_peaks.append([peaks_from[j][i], peaks_to[j][i]])
+            self.add_rail(stations[i], stations[i + 1], station_peaks)
+        # add the final station in separately
+        station_peaks = []
+        for j in range(len(peaks_from)):
+            station_peaks.append([peaks_from[j][-1], peaks_to[j][-1]])
+        self.add_rail(stations[-1], stations[-1], station_peaks)
 
-    This should probably be made OOP and be an implementation of an interface, but will do for a demo. Also,
-    this service has so many exceptions to its peak times that it's next to impossible to model perfectly,
-    but I'm not going to worry so much about that.
 
+def build_train_network(net_name, stations, peaks_from, peaks_to):
+    """ Uses the Network class to build a representation of the train stations of a given network using the supplied
+    stations and peak time timetables and saves to the corresponding entry in the network table of database db. If
+    given network already exists, this will append the data given to the existing network
+
+    :param str net_name:                name of the network we are building
+    :param list[str] stations:          list of station tpl codes on this network in order of how they are linked
+    :param list[list[str]] peaks_from:  start times of peak travel periods for trains leaving from station[n]
+    :param list[list[str]] peaks_to:    end times of peak travel periods for trains leaving from station[n]
+
+    :rtype: bool
+    :return: True if network was built and saved correctly else false
+    """
+    # check if the network already exists
+    conn = __connect_to_db()
+    cur  = conn.cursor()
+
+    cur.execute(""" SELECT object FROM networks WHERE name=? """, (net_name,))
+    result = cur.fetchone()
+
+    appending = False
+    n = Network(net_name)
+    if result is not None:
+        appending = True
+        n = pickle.loads(result[0])
+
+    n.append_rails(stations, peaks_from, peaks_to)
+    success = store_network(n, conn, appending)
+    conn.close()
+    return success
+
+
+def store_network(network, conn, appending=True):
+    """function to pickle and save the given network object.
+
+    :param Network network:
+    :param sqlite3.Connection conn: sqlite3 Connection
+    :param appending: True if network already exists else False
+    :return: True if successful else false
+    """
+    cursor = conn.cursor()
+    serial_n = pickle.dumps(network)  # serialise the network in order to store it
+    if appending:
+        cursor.execute(""" UPDATE networks SET object=? WHERE name=? """, (serial_n, network.get_name()))
+    else:
+        cursor.execute(""" INSERT INTO networks VALUES(?,?) """, (network.get_name(), serial_n))
+    conn.commit()
+    return True
+
+
+def get_network(name):
+    """Retrieves the given network from the network table of the database
+
+    :param str name: Name of network to retrieve, as listed in networks table
     :rtype:  Network
-    :return: A Graph object representing the Greater Anglia network
+    :return: A Network object representing the Greater Anglia network
     """
-    n = Network()
-    stations = ["NRCH", "DISS", "STWMRKT", "NEEDHAM", "IPSWICH", "MANNGTR", "CLCHSTR", "MRKSTEY", "KELVEDN", "WITHAME",
-                "HFLPEVL", "CHLMSFD", "INGTSTN", "SHENFLD", "BRTWOOD", "HRLDWOD", "GIDEAPK", "ROMFORD", "CHDWLHT",
-                "GODMAYS", "SVNKNGS", "ILFORD", "MANRPK", "FRSTGT", "MRYLAND", "STFD", "BTHNLGR", "LIVST"]
-
-    peak_am_from = "0400"
-    peak_to_london = ["0805", "0821", "0833", "0839", "0846", "0857", "0906", "0913", "0916", "0919", "0921", "0925",
-                      "0932", "0936", "0937", "0941", "0942", "0943", "0945", "0945", "0946", "0947", "0948", "0949",
-                      "0950", "0951", "0957", "1001"]
-    # peak_times = _str_to_dt(peak_to_london)
-
-    for i in range(len(stations)-1):  # add connections between stations from Norwich to London
-        n.add_rail(stations[i], stations[i+1], [[peak_am_from, peak_to_london[i]]])
-
-    # Connections from London to Norwich
-    peak_from_london_am = ["0930", "", "", "", "", "", "", "", "", "", "",
-                           "", "", "", "", "", "", "", "", "", "", "",
-                           "", "", "", "", "", ""]
-    peak_pm_from        = ["1624", "", "", "", "", "", "", "", "", "", "",
-                           "", "", "", "", "", "", "", "", "", "", "",
-                           "", "", "", "", "", ""]
-    peak_from_london_pm = ["1834", "", "", "", "", "", "", "", "", "", "",
-                           "", "", "", "", "", "", "", "", "", "", "",
-                           "", "", "", "", "", ""]
-    for i in reversed(range(1, len(stations))):  # go from London to Norwich
-        n.add_rail(stations[i], stations[i-1], [[peak_am_from, peak_from_london_am[i]],
-                                                [peak_pm_from[i], peak_from_london_pm[i]]])
+    conn = __connect_to_db()
+    cur = conn.cursor()
+    cur.execute(""" SELECT object FROM networks WHERE name=? """, (name,))
+    data = cur.fetchone()
+    retrieved_n = pickle.loads(data[0])
+    return retrieved_n
 
 
-    return n
+def __connect_to_db():
+    """Opens and returns a connection to database db or exception if the connection failed
 
-
-def _str_to_dt(str_list):
-    """Turn a list of strings into a list of datetime objects. Strings must be in the range "0000" to "2359"
-
-    :param list[str] str_list: list of strings to convert to datetime objects
-
-    :rtype: list[datetime]
-    :return: list of datetime objects
+    :return: connection to db
+    :raises  sqlite3.Error: if connection to db fails
     """
-    dt_list = []
-    for i in range(len(str_list)):
-        dt_list.append(datetime.strptime(str_list[i], "%H%M"))
-    return dt_list
+    conn = None
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        db_path = os.path.join(base_dir, "db.sqlite")
+        conn = sqlite3.connect(db_path)
+    except sqlite3.Error as e:
+        print(e)
+    return conn
+
+
+if __name__ == "__main__":
+    n = get_network("ga_intercity")
+    print(n.get_name())
