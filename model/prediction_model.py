@@ -16,7 +16,6 @@ import sqlite3
 import os.path
 import pandas as pd
 import numpy as np
-import data.services as services
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
 
