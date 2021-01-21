@@ -1,5 +1,6 @@
 import unittest
-from datetime import datetime, timedelta
+import datetime
+from datetime import  timedelta
 from chatbot.nlp import parse_user_input
 
 
