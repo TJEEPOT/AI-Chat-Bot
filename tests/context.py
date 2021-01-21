@@ -8,4 +8,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import model.scraper as scraper
 import model.prediction_model as model
-import model.reasoning_engine as re
+import chatbot.presenter as presenter
+import data.process_data as process
+import data.services as services

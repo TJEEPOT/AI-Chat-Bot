@@ -181,6 +181,7 @@ html, body {
     border-radius: 5px;
     font-weight: bold;
     color: white;
+
 }
 .general-button:hover{
     background: var(--button-background-color-hover);
@@ -191,8 +192,7 @@ html, body {
 ::placeholder{
     color: white;
 }
-input:focus, button:focus{
+input:focus, button:focus, #record-button-span:focus{
     outline: none;
 }
 .material-icons.md-48 { font-size: 48px; }
-

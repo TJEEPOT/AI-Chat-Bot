@@ -27,19 +27,14 @@ def single_fare(dep, arr, date, time):
     """Takes stations and datetime object and creates a single ticket search term
     Validated details are formed into a term to be appended to the search URL.
 
-    :type dep:      str
-    :param dep:     The CRS code of the departing station (e.g. NRW)
-    :type arr:      str
-    :param arr:     The CRS code of the arriving station
-    :type date:     str
-    :param date:    A date in the form YYYY/MM/DD (e.g. 2021/01/29) to search for results
-    :type time:     str
-    :param time:    A time in the form HH:MM representing the target time for a train
+    :param str dep:     The CRS code of the departing station (e.g. NRW)
+    :param str arr:     The CRS code of the arriving station
+    :param str date:    A date in the form YYYY/MM/DD (e.g. 2021/01/29) to search for results
+    :param str time:    A time in the form HH:MM representing the target time for a train
 
-    :rtype:   list
     :returns: Strings representing the cheapest fare in pounds, the time of the cheapest train as HH:MM and
-              the url of the sales page for comparison.
-    :raises:  ValueError if validation fails
+              the url of the sales page for comparison
+    :raises ValueError: If validation of date or time, or of page output fails
     """
     val_date, val_time = __validate_datetime(date, time)  # input validation
 
@@ -68,22 +63,15 @@ def single_fare(dep, arr, date, time):
 def return_fare(dep, arr, dep_date, dep_time, ret_date, ret_time):
     """Takes stations, dates and times and returns the details for the cheapest tickets from nationalrail.co.uk
 
-    :type dep:       str
-    :param dep:      Initial departure station's CRS code
-    :type arr:       str
-    :param arr:      Initial arrival station's CRS code
-    :type dep_date:  str
-    :param dep_date: Departure journey date
-    :type dep_time:  str
-    :param dep_time: Departure journey time
-    :type ret_date:  str
-    :param ret_date: Return journey date
-    :type ret_time:  str
-    :param ret_time: Return journey time
+    :param str dep:      Initial departure station's CRS code
+    :param str arr:      Initial arrival station's CRS code
+    :param str dep_date: Departure journey date
+    :param str dep_time: Departure journey time
+    :param str ret_date: Return journey date
+    :param str ret_time: Return journey time
 
-    :rtype:   list
     :returns: Strings for departure and return ticket prices, departure and return times and booking url
-    :raises:  ValueError if validation fails
+    :raises ValueError: if validation of date or time, or of page output fails
     """
     val_out_date, val_out_time = __validate_datetime(dep_date, dep_time)  # validate outbound
     val_ret_date, val_ret_time = __validate_datetime(ret_date, ret_time)  # validate return
@@ -123,14 +111,12 @@ def delay(train, location, delayed, destination):
 
 def __validate_datetime(date, time):
     """ Validates that the date and time given are valid for searching
-    :type date:  str
-    :param date: Date in the form YYYY/MM/DD
-    :type time:  str
-    :param time: Time in the form HH:MM
 
-    :rtype:  list
-    :return: Date in the form DDMMYY and time in the form HHMM
-    :raises: ValueError if date or time are not valid datetime objects or date is out of bounds
+    :param str date: Date in the form YYYY/MM/DD
+    :param str time: Time in the form HH:MM
+
+    :returns: Date in the form DDMMYY and time in the form HHMM
+    :raises ValueError: If date or time are not valid datetime objects or date is out of bounds
     """
     # Validate date and transform to DDMMYY
     dt_date = datetime.datetime.strptime(date, "%Y/%m/%d")
@@ -149,11 +135,11 @@ def __validate_datetime(date, time):
 
 def __validate_result(title=None):
     """Validation for output html. Will validate based on optional parameters
-    :type title:  string, optional
-    :param title: Page title to be validated
 
-    :raises: ValueError if given parameter does not validate
-             NotImplementedError if no valid parameter is passed
+    :param str title: (optional) Page title to be validated
+
+    :raises ValueError: If given parameter does not validate
+    :raises NotImplementedError: If no valid parameter is passed
     """
     if title is not None:
         if title == "<title>National Rail Enquiries -</title>":

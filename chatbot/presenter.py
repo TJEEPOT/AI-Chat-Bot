@@ -9,9 +9,13 @@ Date    : Saturday 02 January 2021
 Desc.   : Presenter for UI using Flask
 History : 02/01/2021 - v1.0 - Complete basic implementation.
           04/01/2021 - v1.1 - Moved to chatbot directory, renamed to presenter.py
+          08/01/2021 - v1.2 - Added voice recognition facility.
+          20/01/2021 - v1.3 - Changed implementation to socketio
 """
 from flask import Flask, render_template, request, jsonify, make_response
-import model.scraper as scraper
+import speech_recognition as sr
+from chatbot.nlp import parse_user_input
+from flask_socketio import SocketIO, send
 
 __author__     = "Sam Humphreys"
 __credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
@@ -19,7 +23,10 @@ __maintainer__ = "Sam Humphreys"
 __email__      = "s.humphreys@uea.ac.uk"
 __status__     = "Development"  # "Development" "Prototype" "Production"
 
+
 app = Flask(__name__)
+app.config['SECRET_KEY'] = "iamasecretkey"  # I'll pretend I didn't see this.
+socketio = SocketIO(app)
 
 
 @app.route("/")
@@ -27,28 +34,50 @@ def home():
     return render_template('interface.html')
 
 
-@app.route("/get_reply", methods=['POST'])
-def get_reply():
+@app.route("/get_audio", methods=['POST'])
+def get_audio():
+    """Gets audio data from the client to process into text
+
+    :returns: Strings for departure and return ticket prices, departure and return times and booking url
+    :raises ValueError: if validation of date or time, or of page output fails
+    """
     if request.method == 'POST':
-        user_input = request.get_json()
-        # print(user_input)
-        response = make_response(jsonify({"message": generate_response(user_input)}), 200)
+        audio_file = request.files['file']
+        words = __process_speech(audio_file)
+        response = make_response(jsonify({"message": words}), 200)
         return response
 
 
-# main logic function calling other modules
-def generate_response(user_input):
-    #
-    # CALL TO NLP WOULD GO HERE
-    # train_details = nlp.process(user_input)
-    #
+def __process_speech(user_audio):
+    speech_recog = sr.Recognizer()
+    with sr.AudioFile(user_audio) as source:
+        audio = speech_recog.listen(source)
     try:
-        dep, arr, date, time = user_input.split(", ")
-        fare, time, url = scraper.single_fare(dep, arr, date, time)
-    except ValueError:
-        return "Incorrect input, please try again."
-    return "The cheapest fare is {} departing at {}. Book this ticket at {}".format(fare, time, url)
+        words = speech_recog.recognize_google(audio, language="en-GB")
+        print("Words: {}".format(words))
+        return words
+    except Exception as e:
+        print(e)
+
+
+def send_message(bot_response):
+    send(bot_response)
+
+
+@socketio.on('connect')
+def user_connected():
+    # do stuff here if we want a greeting message
+    greeting_message = "Hello"          # plug in to random responses
+    send(greeting_message)
+
+
+@socketio.on('message')
+def receive_message(user_input):
+    print("User message:" + user_input)
+    # send to NLP
+    nlp_response = parse_user_input(user_input)
+    # send to RE
 
 
 if __name__ == "__main__":
-    app.run()
+    socketio.run(app)
