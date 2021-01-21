@@ -4,7 +4,8 @@
 import spacy
 import sqlite3
 import datefinder
-from datetime import datetime, timedelta
+import datetime
+from datetime import timedelta
 from spacy.matcher import PhraseMatcher
 
 __author__ = "Sam Humphreys"
