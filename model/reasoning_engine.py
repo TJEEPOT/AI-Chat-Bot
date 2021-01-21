@@ -468,6 +468,7 @@ def process_user_input(info):
     engine.reset()
     engine.run()
 
+
 processed_input_full = {  # example : i would like to book a ticket
     "intent": "ticket",
     "from_station": "Norwich",
