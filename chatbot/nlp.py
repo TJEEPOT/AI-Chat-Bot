@@ -4,6 +4,8 @@
 import spacy
 import sqlite3
 import datefinder
+import datetime
+from datetime import timedelta
 from spacy.matcher import PhraseMatcher
 
 __author__ = "Sam Humphreys"
@@ -131,12 +133,31 @@ def parse_user_input(user_input):
     phrase_matcher.add("confirm_yes", on_match_confirm_true, *confirm_yes_pattern)
     phrase_matcher.add("confirm_no", on_match_confirm_false, *confirm_no_pattern)
 
+
     # find dates
     def match_dates():
-        date_matches = datefinder.find_dates(user_input)
         found_dates = []
+        midnight_vars = ['midnight', '12am', '00:00']
+        midnight_requested = False
+        midnight_time = datetime.time(0,0)
+
+        for token in doc:
+            if token.text.lower in midnight_vars:
+                midnight_requested = True
+            if token.text.lower() == "today":
+                today_date = datetime.datetime.today()
+                today_date = today_date.replace(hour=0,minute=0,second=0,microsecond=0)
+                found_dates.append(today_date)
+            elif token.text.lower() == "tomorrow":
+                date_tomorrow = (datetime.datetime.today() + timedelta(1))
+                date_tomorrow = date_tomorrow.replace(hour=0,minute=0,second=0,microsecond=0)
+                found_dates.append(date_tomorrow)
+
+
+        date_matches = datefinder.find_dates(user_input)
         for dateMatch in date_matches:
             found_dates.append(dateMatch)
+            print(dateMatch)
         number_of_dates = len(found_dates)
         outward_date = ""
         outward_time = ""
@@ -145,14 +166,14 @@ def parse_user_input(user_input):
         if processed_input['from_station'] != "":
             if 0 < number_of_dates < 2:
                 outward_date = found_dates[0].date()
-                outward_time = found_dates[0].time()
+                if found_dates[0].time() != midnight_time or midnight_requested:
+                    outward_time = found_dates[0].time()
 
             elif number_of_dates == 2:
                 return_date = found_dates[1].date()
-                return_time = found_dates[1].time()
-            else:
-                for date in found_dates:
-                    processed_input['no_category'].append(date)
+                if found_dates[1].time() != midnight_time or midnight_requested:
+                    return_time = found_dates[1].time()
+
             processed_input['outward_date'] = outward_date
             processed_input['outward_time'] = outward_time
             processed_input['return_date'] = return_date
@@ -162,9 +183,11 @@ def parse_user_input(user_input):
                 misc_date = date.date()
                 misc_time = date.time()
                 processed_input['no_category'].append(misc_date)
-                processed_input['no_category'].append(misc_time)
+                if date.time() != midnight_time or midnight_requested:
+                    processed_input['no_category'].append(misc_time)
 
     doc = nlp(user_input)
+
     phrase_matcher(doc)
     match_dates()
     processed_input['raw_message'] = user_input
