@@ -10,9 +10,9 @@ Desc.   : Presenter for UI using Flask
 History : 02/01/2021 - v1.0 - Complete basic implementation.
           04/01/2021 - v1.1 - Moved to chatbot directory, renamed to presenter.py
           08/01/2021 - v1.2 - Added voice recognition facility.
+          20/01/2021 - v1.3 - Changed implementation to socketio
 """
 from flask import Flask, render_template, request, jsonify, make_response
-import model.scraper as scraper
 import speech_recognition as sr
 from chatbot.nlp import parse_user_input
 from flask_socketio import SocketIO, send
@@ -24,10 +24,10 @@ __email__      = "s.humphreys@uea.ac.uk"
 __status__     = "Development"  # "Development" "Prototype" "Production"
 
 
-
 app = Flask(__name__)
-app.config['SECRET_KEY'] = "iamasecretkey"
+app.config['SECRET_KEY'] = "iamasecretkey"  # I'll pretend I didn't see this.
 socketio = SocketIO(app)
+
 
 @app.route("/")
 def home():
@@ -37,8 +37,6 @@ def home():
 @app.route("/get_audio", methods=['POST'])
 def get_audio():
     """Gets audio data from the client to process into text
-
-
 
     :returns: Strings for departure and return ticket prices, departure and return times and booking url
     :raises ValueError: if validation of date or time, or of page output fails
@@ -61,8 +59,10 @@ def __process_speech(user_audio):
     except Exception as e:
         print(e)
 
+
 def send_message(bot_response):
     send(bot_response)
+
 
 @socketio.on('connect')
 def user_connected():
@@ -72,7 +72,7 @@ def user_connected():
 
 
 @socketio.on('message')
-def recieve_message(user_input):
+def receive_message(user_input):
     print("User message:" + user_input)
     # send to NLP
     nlp_response = parse_user_input(user_input)
