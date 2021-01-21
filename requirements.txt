@@ -15,3 +15,5 @@ urllib3==1.26.2
 Werkzeug==1.0.1
 pandas~=1.2.0
 scikit-learn~=0.24.0
+spacy~=2.3.5
+datefinder~=0.7.1

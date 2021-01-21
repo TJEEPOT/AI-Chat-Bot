@@ -14,12 +14,15 @@ History : 02/01/2021 - v1.0 - Complete basic implementation.
 from flask import Flask, render_template, request, jsonify, make_response
 import model.scraper as scraper
 import speech_recognition as sr
+from chatbot.nlp import process_user_input
 
 __author__     = "Sam Humphreys"
 __credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
 __maintainer__ = "Sam Humphreys"
 __email__      = "s.humphreys@uea.ac.uk"
 __status__     = "Development"  # "Development" "Prototype" "Production"
+
+
 
 app = Flask(__name__)
 
@@ -44,12 +47,18 @@ def __generate_response(user_input):
     # CALL TO NLP WOULD GO HERE
     # train_details = nlp.process(user_input)
     #
-    try:
-        dep, arr, date, time = user_input.split(", ")
-        fare, time, url = scraper.single_fare(dep, arr, date, time)
-    except ValueError:
-        return "Incorrect input, please try again."
-    return "The cheapest fare is {} departing at {}. Book this ticket at {}".format(fare, time, url)
+    # try:
+    #     dep, arr, date, time = user_input.split(", ")
+    #     fare, time, url = scraper.single_fare(dep, arr, date, time)
+    # except ValueError:
+    #     return "Incorrect input, please try again."
+    # return "The cheapest fare is {} departing at {}. Book this ticket at {}".format(fare, time, url)
+    #
+
+    bot_response = process_user_input(user_input)['raw_message']    #testing nlp
+    # need to send to the RE here
+    return bot_response
+
 
 
 @app.route("/get_audio", methods=['POST'])
