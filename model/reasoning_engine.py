@@ -21,6 +21,7 @@ History : 01/01/2021 - v1.0 - Created project file
 import sqlite3
 import datetime
 from experta import *
+from fuzzywuzzy import process
 
 __author__ = "Steven Diep"
 __credits__ = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
@@ -281,6 +282,14 @@ class Chatbot(KnowledgeEngine):
           )
     def ask_time_delayed(self, departure_location, arrival_location):
         print("How long were you delayed by?")
+        for k, v in self.currentInfo.items():  # dictionary coming in
+            if k == 'raw_message' and v != '':
+                delayTime = v.split()
+                for minutes in delayTime:
+                    if minutes.isdigit():
+
+            else:
+                pass
         delayedTime = input()  # input integer in minutes? maybe add way to convert hours into mins for longer delays
 
         print("time delayed:", delayedTime)
@@ -308,7 +317,7 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(departure_date=v[0]))
                 break
 
-    @Rule(Fact(departure_date=MATCH.departure_date))
+    @Rule(Fact(departure_date=MATCH.departure_date), NOT(Fact()))
     def ask_depart_time(self, departure_date):
         print("What time are you leaving?")  # read as 24hr clock
         for k, v in self.currentInfo.items():  # dictionary coming in
@@ -325,7 +334,7 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(leaving_time=v[1]))
                 break
 
-    @Rule(Fact(leaving_time=W()))
+    @Rule(Fact(leaving_time=W()), NOT(Fact(return_or_not=W())))
     def ask_return(self):
         print("Are you planning to return?")
         for k, v in self.currentInfo.items():  # dictionary coming in
@@ -349,7 +358,6 @@ class Chatbot(KnowledgeEngine):
           )
     def ask_return_date(self, departure_date):
         print("What date are you returning?") # send message
-        process_user_input()
         for k, v in self.currentInfo.items():  # dictionary coming in
             if k in ['return_date', 'no_category'] and (v != '' or v):
                 if isinstance(v, list):
@@ -369,6 +377,7 @@ class Chatbot(KnowledgeEngine):
           )
     def ask_return_time(self, return_date, departure_date, leaving_time):
         print("What time would you like to return?")
+
         for k, v in self.currentInfo.items():  # dictionary coming in
             if k in ['return_time', 'no_category'] and (v != '' or v):
                 if isinstance(v, list):
