@@ -23,6 +23,7 @@ import datetime
 from experta import *
 from fuzzywuzzy import process
 from chatbot.presenter import send_message
+from model.scraper import single_fare, return_fare
 
 __author__ = "Steven Diep"
 __credits__ = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
@@ -491,12 +492,22 @@ class Chatbot(KnowledgeEngine):
     def ask_confirmation(self, return_or_not, departure_location, departCRS,
                          arrival_location, arriveCRS, departure_date, leaving_time,
                          return_date, return_time):
-        no_return = "Please confirm your booking...\nDeparture datetime: " + str(departure_date) + " at " + str(leaving_time) + "\nDeparting from: " + str(departure_location) + "\nArriving at: " + str(arrival_location)
-        if return_or_not:
-            returning = no_return + "\nReturning datetime: " + str(return_date) + " at " + str(return_time)
-            send_message(returning)
+        if 'confirmation' in self.dictionary and self.dictionary.get('confirmation') != '': #TODO have to rest??
+            self.currentInfo['confirmation'] = self.dictionary.get('confirmation')
+            if self.dictionary.get('confirmation'):     # if confirmation is correct
+                pass
+            else:
+                pass
+            self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))
         else:
-            send_message(no_return)
+            no_return = "Please confirm your booking...<br>Departure datetime: " + str(departure_date) + " at " \
+                        + str(leaving_time) + "<br>Departing from: " + str(departure_location) \
+                        + "<br>Arriving at: " + str(arrival_location)
+            if return_or_not:
+                returning = no_return + "<br>Returning datetime: " + str(return_date) + " at " + str(return_time)
+                send_message(returning)
+            else:
+                send_message(no_return)
 
         '''send_message("Please confirm your booking..."
                      "\nDeparture datetime: ", departure_date, "at", leaving_time,
