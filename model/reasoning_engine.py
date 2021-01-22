@@ -21,6 +21,7 @@ History : 01/01/2021 - v1.0 - Created project file
 import sqlite3
 import datetime
 from experta import *
+import random
 from fuzzywuzzy import process
 from chatbot.presenter import send_message
 from model.scraper import single_fare, return_fare
@@ -191,8 +192,8 @@ class Chatbot(KnowledgeEngine):
         '''if 'outward_time' in self.currentInfo:  # when the bot receives a new input the re will check the current info it already has
             yield Fact(leaving_time=self.currentInfo.get('outward_time'))'''
 
-        if 'confirmation' in self.currentInfo:
-            yield Fact(return_or_not=self.currentInfo.get('confirmation'))
+        if 'confirmation_return' in self.currentInfo:
+            yield Fact(return_or_not=self.currentInfo.get('confirmation_return'))
 
         if 'return_date' in self.currentInfo:
             yield Fact(return_date=self.currentInfo.get('return_date'))
@@ -200,8 +201,8 @@ class Chatbot(KnowledgeEngine):
         if 'return_time' in self.currentInfo:
             yield Fact(return_time=self.currentInfo.get('return_time'))
 
-        '''if 'return_time' in self.currentInfo:
-            yield Fact(return_time=self.currentInfo.get('return_time'))'''
+        if 'correct_booking' in self.currentInfo:
+            yield Fact(correct_booking=self.currentInfo.get('correct_booking'))
 
         '''if 'no_category' in self.currentInfo:
             yield Fact(return_time=self.currentInfo.get('no_category'))'''
@@ -244,14 +245,16 @@ class Chatbot(KnowledgeEngine):
           salience=46
           )
     def ask_departure_station(self):
-        if 'from_station' in self.dictionary and self.dictionary.get('from_station') != '': # if from station is in dictionary
+        if 'from_station' in self.dictionary and self.dictionary.get(
+                'from_station') != '':  # if from station is in dictionary
             self.currentInfo['from_station'] = self.dictionary.get('from_station')
             self.declare(Fact(departure_location=self.dictionary.get('from_station')))
         elif 'from_station' not in self.currentInfo and self.dictionary.get('no_category'):
             self.currentInfo['from_station'] = self.dictionary.get('no_category')[0]
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
-            c.execute("SELECT crs FROM stations WHERE name=:location", {'location': self.dictionary.get('no_category')[0]})
+            c.execute("SELECT crs FROM stations WHERE name=:location",
+                      {'location': self.dictionary.get('no_category')[0]})
             crs = c.fetchone()
             self.currentInfo['from_crs'] = crs[0]
             self.declare(Fact(departure_location=self.dictionary.get('no_category')[0], departCRS=crs[0]))
@@ -282,16 +285,20 @@ class Chatbot(KnowledgeEngine):
           salience=44
           )
     def ask_arrival_station(self):
-        if 'to_station' in self.dictionary and self.dictionary.get('to_station') != '': # if from station is in dictionary
+        if 'to_station' in self.dictionary and self.dictionary.get(
+                'to_station') != '':  # if from station is in dictionary
             self.currentInfo['to_station'] = self.dictionary.get('to_station')
             self.declare(Fact(arrival_location=self.dictionary.get('to_station')))
             print(engine.facts)
-        elif 'to_station' not in self.currentInfo and self.dictionary.get('no_category') and self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station'):  #'no_category' in self.dictionary and self.dictionary.get('no_category') and self.currentInfo.get('from_station')
+        elif 'to_station' not in self.currentInfo and self.dictionary.get('no_category') and \
+                self.dictionary.get('no_category')[0] != self.currentInfo.get(
+                'from_station'):  # 'no_category' in self.dictionary and self.dictionary.get('no_category') and self.currentInfo.get('from_station')
             print(self.dictionary.get('no_category'))
             self.currentInfo['to_station'] = self.dictionary.get('no_category')[0]
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
-            c.execute("SELECT crs FROM stations WHERE name=:location", {'location': self.dictionary.get('no_category')[0]})
+            c.execute("SELECT crs FROM stations WHERE name=:location",
+                      {'location': self.dictionary.get('no_category')[0]})
             crs = c.fetchone()
             self.currentInfo['to_crs'] = crs[0]
             self.declare(Fact(arrival_location=self.dictionary.get('no_category')[0], arriveCRS=crs[0]))
@@ -346,10 +353,11 @@ class Chatbot(KnowledgeEngine):
           salience=40
           )
     def ask_depart_date(self):
-        if 'outward_date' in self.dictionary and self.dictionary.get('outward_date') != '': #TODO with input tomorrow
+        if 'outward_date' in self.dictionary and self.dictionary.get('outward_date') != '':  # TODO with input tomorrow
             self.currentInfo['outward_date'] = self.dictionary.get('outward_date')
             self.declare(Fact(departure_date=self.dictionary.get('outward_date')))
-        elif 'outward_date' not in self.currentInfo and self.dictionary.get('no_category') and self.dictionary.get('no_category')[0] != self.currentInfo.get('to_station'):
+        elif 'outward_date' not in self.currentInfo and self.dictionary.get('no_category') and \
+                self.dictionary.get('no_category')[0] != self.currentInfo.get('to_station'):
             print(self.dictionary.get('no_category'))
             self.currentInfo['outward_date'] = self.dictionary.get('no_category')[0]
             print(self.currentInfo.get('outward_date'))
@@ -377,7 +385,8 @@ class Chatbot(KnowledgeEngine):
         if 'outward_time' in self.dictionary and self.dictionary.get('outward_time') != '':
             self.currentInfo['outward_time'] = self.dictionary.get('outward_time')
             self.declare(Fact(leaving_time=self.dictionary.get('outward_time')))
-        elif 'outward_time' not in self.currentInfo and self.dictionary.get('no_category') and self.dictionary.get('no_category')[0] != self.currentInfo.get('outward_date'):
+        elif 'outward_time' not in self.currentInfo and self.dictionary.get('no_category') and \
+                self.dictionary.get('no_category')[0] != self.currentInfo.get('outward_date'):
             self.currentInfo['outward_time'] = self.dictionary.get('no_category')[1]
             self.declare(Fact(leaving_time=self.dictionary.get('no_category')[1]))
         else:
@@ -402,9 +411,16 @@ class Chatbot(KnowledgeEngine):
           )
     def ask_return(self):
         if 'confirmation' in self.dictionary and self.dictionary.get('confirmation') != '':
-            self.currentInfo['confirmation'] = self.dictionary.get('confirmation')
-            print(self.currentInfo)
-            self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
+            self.currentInfo['confirmation_return'] = self.dictionary.get('confirmation')
+            if not self.dictionary.get('confirmation'):  # if no
+                self.currentInfo['return_date'] = self.dictionary.get('return_date')
+                self.currentInfo['return_time'] = self.dictionary.get('return_time')
+                self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
+                self.declare(Fact(return_date=' '))
+                self.declare(Fact(return_time=' '))
+                self.dictionary['confirmation'] = ''
+            else:
+                self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
         else:
             send_message("Are you planning to return?")
 
@@ -461,7 +477,8 @@ class Chatbot(KnowledgeEngine):
         if 'return_time' in self.dictionary and self.dictionary.get('return_time') != '':
             self.currentInfo['return_time'] = self.dictionary.get('return_time')
             self.declare(Fact(return_time=self.dictionary.get('return_time')))
-        elif 'return_time' not in self.currentInfo and self.dictionary.get('no_category') and self.dictionary.get('no_category')[0] != self.currentInfo.get('return_date'):
+        elif 'return_time' not in self.currentInfo and self.dictionary.get('no_category') and \
+                self.dictionary.get('no_category')[0] != self.currentInfo.get('return_date'):
             self.currentInfo['return_time'] = self.dictionary.get('no_category')[1]
             self.declare(Fact(return_time=self.dictionary.get('no_category')[1]))
         else:
@@ -487,24 +504,45 @@ class Chatbot(KnowledgeEngine):
           Fact(leaving_time=MATCH.leaving_time),
           Fact(return_date=MATCH.return_date),
           Fact(return_time=MATCH.return_time),
+          NOT(Fact(correct_booking=W())),
           salience=30
           )
-    def ask_confirmation(self, return_or_not, departure_location, departCRS,
-                         arrival_location, arriveCRS, departure_date, leaving_time,
-                         return_date, return_time):
-        if 'confirmation' in self.dictionary and self.dictionary.get('confirmation') != '': #TODO have to rest??
-            self.currentInfo['confirmation'] = self.dictionary.get('confirmation')
-            if self.dictionary.get('confirmation'):     # if confirmation is correct
-                pass
+    def ask_correct_booking(self, return_or_not, departure_location, departCRS,
+                            arrival_location, arriveCRS, departure_date, leaving_time,
+                            return_date, return_time):
+        if 'confirmation' in self.dictionary and self.dictionary.get('confirmation') != '':
+            self.currentInfo['correct_booking'] = self.dictionary.get('confirmation')
+            if self.dictionary.get('confirmation'):  # if confirmation is correct
+                if return_or_not:  # is a return ticket
+                    cost, time_out, time_ret, url = return_fare(departCRS, arriveCRS,
+                                                                str(departure_date).replace('-', '/'),
+                                                                leaving_time.strftime("%H:%M"),
+                                                                str(return_date).replace('-', '/'),
+                                                                return_time.strftime("%H:%M"))
+                    send_message("Here is the return ticket that we could find for you: "
+                                 + "<br>Total cost: " + str(cost)
+                                 + "<br>Time outward: " + str(time_out)
+                                 + "<br>Time return: " + str(time_ret)
+                                 + "<br>URL: " + "<a href="+str(url)+">Link to ticket</a>")  # TODO if theres no ticket? maybe list multiple tickets in a 30 min range
+                else:
+                    cost, time, url = single_fare(departCRS, arriveCRS,
+                                                  str(departure_date).replace('-', '/'),
+                                                  leaving_time.strftime("%H:%M"))
+                    send_message("Here is the single ticket that we could find for you: "
+                                 + "<br>Total cost: " + str(cost)
+                                 + "<br>Time: " + str(time)
+                                 + "<br>URL: " + "<a href="+str(url)+">Link to ticket</a>")
             else:
-                pass
-            self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))
+                print("noooooooooooooooooooooo")
+                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))
         else:
             no_return = "Please confirm your booking...<br>Departure datetime: " + str(departure_date) + " at " \
-                        + str(leaving_time) + "<br>Departing from: " + str(departure_location) \
+                        + leaving_time.strftime("%H:%M") + "<br>Departing from: " + str(departure_location) \
                         + "<br>Arriving at: " + str(arrival_location)
             if return_or_not:
-                returning = no_return + "<br>Returning datetime: " + str(return_date) + " at " + str(return_time)
+                returning = no_return \
+                            + "<br>Returning datetime: " + str(return_date) \
+                            + " at " + return_time.strftime("%H:%M")
                 send_message(returning)
             else:
                 send_message(no_return)
@@ -528,7 +566,7 @@ class Chatbot(KnowledgeEngine):
                 else:
                     print("Sorry, I did not understand that.")'''
 
-    @Rule(Fact(correct_booking='no'),
+    @Rule(Fact(correct_booking=False),
           salience=28
           )
     def ask_adjustment(self):
@@ -573,171 +611,7 @@ engine.currentInfo = {}
 def process_user_input(info):
     engine.dictionary = info
     print(engine.facts)
+    print(engine.dictionary)
+    print(engine.currentInfo)
     engine.reset()
     engine.run()
-
-
-processed_input_full = {  # example : i would like to book a ticket
-    "intent": "ticket",
-    "from_station": "Norwich",
-    "from_crs": "NRW",
-    "to_station": "London Liverpool Street",
-    "to_crs": "LST",
-    "outward_date": datetime.date(2021, 9, 1),
-    "outward_time": datetime.time(20, 0),
-    "return_date": '',  # datetime.date(2021, 9, 1)
-    "return_time": '',  # datetime.time(19, 0)
-    "confirmation": True,
-    "no_category": [],
-    "raw_message": "I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes"
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-processed_input7 = {  # example : i would like to book a ticket
-    'intent': '',
-    'from_station': '', 'from_crs': '',
-    'to_station': '', 'to_crs': '',
-    'outward_date': '',  # datetime.date(2020, 1, 1),
-    'outward_time': '',  # datetime.date(2020, 1, 1),
-    'return_date': '',
-    'return_time': '',
-    'confirmation': '',
-    'no_category': [datetime.date(2021, 9, 20), datetime.time(0, 0)],
-    'raw_message': 'I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes'
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-'''process_user_input(processed_input_full)
-process_user_input(processed_input7)'''
-
-'''processed_input = {  # example : i would like to book a ticket
-    'intent': '',
-    'from_station': '', 'from_crs': '',
-    'to_station': '', 'to_crs': '',
-    'outward_date': '',  # datetime.date(2020, 1, 1),
-    'outward_time': '',  # datetime.date(2020, 1, 1),
-    'return_date': '',
-    'return_time': '',
-    'confirmation': '',
-    'no_category': [],
-    'raw_message': 'I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes'
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-processed_input1 = {  # example : i would like to book a ticket
-    'intent': 'ticket',
-    'from_station': '', 'from_crs': '',
-    'to_station': '', 'to_crs': '',
-    'outward_date': '',  # datetime.date(2020, 1, 1),
-    'outward_time': '',  # datetime.date(2020, 1, 1),
-    'return_date': '',
-    'return_time': '',
-    'confirmation': '',
-    'no_category': [],
-    'raw_message': 'I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes'
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-processed_input2 = {  # example : i would like to book a ticket
-    "intent": "",
-    "from_station": "",
-    "from_crs": "",
-    "to_station": "",
-    "to_crs": "",
-    "outward_date": "",
-    "outward_time": "",
-    "return_date": "",
-    "return_time": "",
-    "confirmation": "",
-    "no_category": ["Norwich"],
-    "raw_message": "norwich"
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-processed_input3 = {  # example : i would like to book a ticket
-    "intent": "",
-    "from_station": "",
-    "from_crs": "",
-    "to_station": "",
-    "to_crs": "",
-    "outward_date": "",
-    "outward_time": "",
-    "return_date": "",
-    "return_time": "",
-    "confirmation": "",
-    "no_category": ["London Liverpool Street"],
-    "raw_message": "london liverpool street"
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-processed_input4 = {  # example : i would like to book a ticket
-    'intent': '',
-    'from_station': '', 'from_crs': '',
-    'to_station': '', 'to_crs': '',
-    'outward_date': '',  # datetime.date(2020, 1, 1),
-    'outward_time': '',  # datetime.date(2020, 1, 1),
-    'return_date': '',
-    'return_time': '',
-    'confirmation': '',
-    'no_category': [datetime.date(2021, 1, 20), datetime.time(0, 0)],
-    'raw_message': 'I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes'
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-processed_input5 = {  # example : i would like to book a ticket
-    'intent': '',
-    'from_station': '', 'from_crs': '',
-    'to_station': '', 'to_crs': '',
-    'outward_date': '',  # datetime.date(2020, 1, 1),
-    'outward_time': '',  # datetime.date(2020, 1, 1),
-    'return_date': '',
-    'return_time': '',
-    'confirmation': '',
-    'no_category': [datetime.date.today(), datetime.time(2, 0)],
-    'raw_message': 'I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes'
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-processed_input6 = {  # example : i would like to book a ticket
-    'intent': '',
-    'from_station': '', 'from_crs': '',
-    'to_station': '', 'to_crs': '',
-    'outward_date': '',  # datetime.date(2020, 1, 1),
-    'outward_time': '',  # datetime.date(2020, 1, 1),
-    'return_date': '',
-    'return_time': '',
-    'confirmation': True,
-    'no_category': [],
-    'raw_message': 'I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes'
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-processed_input8 = {  # example : i would like to book a ticket
-    'intent': '',
-    'from_station': '', 'from_crs': '',
-    'to_station': '', 'to_crs': '',
-    'outward_date': '',  # datetime.date(2020, 1, 1),
-    'outward_time': '',  # datetime.date(2020, 1, 1),
-    'return_date': '',
-    'return_time': '',
-    'confirmation': '',
-    'no_category': [datetime.date.today(), datetime.time(21, 0)],
-    'raw_message': 'I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes'
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-processed_input9 = {  # example : i would like to book a ticket
-    'intent': '',
-    'from_station': '', 'from_crs': '',
-    'to_station': '', 'to_crs': '',
-    'outward_date': '',  # datetime.date(2020, 1, 1),
-    'outward_time': '',  # datetime.date(2020, 1, 1),
-    'return_date': '',
-    'return_time': '',
-    'confirmation': True,
-    'no_category': [],
-    'raw_message': 'I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes'
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly
-
-processed_input10 = {  # example : i would like to book a ticket
-    'intent': 'ticket',
-    'from_station': '', 'from_crs': '',
-    'to_station': '', 'to_crs': '',
-    'outward_date': '',  # datetime.date(2020, 1, 1),
-    'outward_time': '',  # datetime.date(2020, 1, 1),
-    'return_date': '',
-    'return_time': '',
-    'confirmation': '',
-    'no_category': [],
-    'raw_message': 'I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes'
-}  # TODO change sql statement to use the crs code because some stations may be spelt incorrectly'''
