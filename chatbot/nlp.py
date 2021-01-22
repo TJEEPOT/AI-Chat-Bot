@@ -71,6 +71,7 @@ def parse_user_input(user_input):
         matched_station = match_matches[match_id]
         matched_span_start = matched_station[1]
         matched_span_end = matched_station[2]
+        length_of_doc = len(doc)
         first_word = match_doc[matched_span_start]
         matched_span = match_doc[matched_span_start:matched_span_end]
         for token in match_doc:
@@ -79,9 +80,10 @@ def parse_user_input(user_input):
                 head = str(token.head)
                 prev_word = ""
                 next_word = ""
-                if len(doc) >= 3:
+                if matched_span_start > 0:
                     prev_word = doc[matched_span_start - 1].text
-                    next_word = doc[matched_span_start + 1].text
+                if matched_span_end < length_of_doc:
+                    next_word = doc[matched_span_end].text
                 if head == "from" or prev_word == "from" or next_word == "to":
                     processed_input["from_station"] = capitalised_span
                     processed_input["from_crs"] = station_pairs[capitalised_span]
@@ -92,24 +94,28 @@ def parse_user_input(user_input):
                     processed_input['no_category'].append(capitalised_span)
                 break
 
+
     def on_match_station_crs(match_matcher, match_doc, match_id, match_matches):
-        doc_position = match_matches[match_id][1]
-        matched_station_crs = str(doc[doc_position]).upper()
+        matched_crs = match_matches[match_id]
+        matched_span_start = matched_crs[1]
+        matched_span_end = matched_crs[2]
+        matched_station_crs = str(doc[matched_span_start]).upper()
+        length_of_doc = len(doc)
         prev_word = ""
         next_word = ""
-        if len(doc) >= 3:
-            prev_word = doc[doc_position - 1].text
-            next_word = doc[doc_position + 1].text
+        if matched_span_start > 0:
+            prev_word = doc[matched_span_start - 1].text
+        if matched_span_end < length_of_doc:
+            next_word = doc[matched_span_end].text
         for name, crs in station_pairs.items():
             if crs == matched_station_crs:
                 matched_station_name = name
-                if processed_input['from_station'] != "" and prev_word == "from" or next_word == "to":
+                if processed_input['from_station'] == "" and prev_word == "from" or next_word == "to":
                     processed_input["from_station"] = matched_station_name
                     processed_input["from_crs"] = matched_station_crs
-                elif processed_input['to_station'] != "" and prev_word == "to" or next_word == "from":
+                elif processed_input['to_station'] == "" and prev_word == "to" or next_word == "from":
                     processed_input["to_station"] = matched_station_name
                     processed_input["to_crs"] = matched_station_crs
-
                 break
 
     def on_match_confirm_true(match_matcher, match_doc, match_id, match_matches):
