@@ -316,5 +316,29 @@ class MyTestCase(unittest.TestCase):
             "raw_message": "i want a ticket from norwich to forest gate today"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
+
+    def test_process_input_long_fog(self):
+        text_example = "I would like to book a ticket from Norwich to Forest Gate on 2021/09/09 at 12:00 and returning on 2021/09/09 at 20:00"
+        expected_outward_date = datetime.date(2021, 9, 9)
+        expected_outward_time = datetime.time(12, 0)
+        expected_return_date = datetime.date(2021, 9 ,9)
+        expected_return_time = datetime.time(20,0)
+        expected_output = {
+            "intent": "ticket",
+            "from_station": "Norwich",
+            "from_crs": "NRW",
+            "to_station": "Forest Gate",
+            "to_crs": "FOG",
+            "outward_date": expected_outward_date,
+            "outward_time": expected_outward_time,
+            "return_date": expected_return_date,
+            "return_time": expected_return_time,
+            "confirmation": "",
+            "no_category": [],
+            "raw_message": "I would like to book a ticket from Norwich to Forest Gate on 2021/09/09 at 12:00 and returning on 2021/09/09 at 20:00"
+        }
+        print (expected_output)
+        print (parse_user_input(text_example))
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
 if __name__ == '__main__':
     unittest.main()

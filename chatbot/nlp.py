@@ -157,19 +157,16 @@ def parse_user_input(user_input):
         date_matches = datefinder.find_dates(user_input)
         for dateMatch in date_matches:
             found_dates.append(dateMatch)
-            print(dateMatch)
         number_of_dates = len(found_dates)
         outward_date = ""
         outward_time = ""
         return_date = ""
         return_time = ""
-        if processed_input['from_station'] != "":
-            if 0 < number_of_dates < 2:
-                outward_date = found_dates[0].date()
-                if found_dates[0].time() != midnight_time or midnight_requested:
-                    outward_time = found_dates[0].time()
-
-            elif number_of_dates == 2:
+        if processed_input['from_station'] != "" and 0 < number_of_dates < 3:
+            outward_date = found_dates[0].date()
+            if found_dates[0].time() != midnight_time or midnight_requested:
+                outward_time = found_dates[0].time()
+            if number_of_dates == 2:
                 return_date = found_dates[1].date()
                 if found_dates[1].time() != midnight_time or midnight_requested:
                     return_time = found_dates[1].time()
@@ -178,6 +175,7 @@ def parse_user_input(user_input):
             processed_input['outward_time'] = outward_time
             processed_input['return_date'] = return_date
             processed_input['return_time'] = return_time
+
         else:
             for date in found_dates:
                 misc_date = date.date()
@@ -185,6 +183,7 @@ def parse_user_input(user_input):
                 processed_input['no_category'].append(misc_date)
                 if date.time() != midnight_time or midnight_requested:
                     processed_input['no_category'].append(misc_time)
+
 
     doc = nlp(user_input)
 
