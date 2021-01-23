@@ -8,6 +8,7 @@ class MyTestCase(unittest.TestCase):
     date_today = datetime.date.today()
     processed_input_base = {
         "intent": "",                     # e.g tickets, help, delays
+        "includes_greeting": False,
         "from_station": "",               # e.g Norwich
         "from_crs": "",                   # e.g NRW
         "to_station": "",                 # e.g London Liverpool Street
@@ -24,6 +25,7 @@ class MyTestCase(unittest.TestCase):
         text_example = "book tickets"
         expected_output = {
             "intent": "ticket",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -40,6 +42,7 @@ class MyTestCase(unittest.TestCase):
         text_example = "late"
         expected_output = {
             "intent": "delay",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -56,6 +59,7 @@ class MyTestCase(unittest.TestCase):
         text_example = "help"
         expected_output = {
             "intent": "help",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -69,11 +73,45 @@ class MyTestCase(unittest.TestCase):
             "raw_message": "help"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
-
+        text_example = "change my ticket"
+        expected_output = {
+            "intent": "change",
+            "includes_greeting": False,
+            "from_station": "",
+            "from_crs": "",
+            "to_station": "",
+            "to_crs": "",
+            "outward_date": "",
+            "outward_time": "",
+            "return_date": "",
+            "return_time": "",
+            "confirmation": "",
+            "no_category": [],
+            "raw_message": "change my ticket"
+        }
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
+        text_example = "cancel a ticket"
+        expected_output = {
+            "intent": "cancel",
+            "includes_greeting": False,
+            "from_station": "",
+            "from_crs": "",
+            "to_station": "",
+            "to_crs": "",
+            "outward_date": "",
+            "outward_time": "",
+            "return_date": "",
+            "return_time": "",
+            "confirmation": "",
+            "no_category": [],
+            "raw_message": "cancel a ticket"
+        }
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
     def test_process_depart(self):
         text_example = "norwich"
         expected_output = {
             "intent": "",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -91,6 +129,7 @@ class MyTestCase(unittest.TestCase):
         text_example = "london liverpool street"
         expected_output = {
             "intent": "",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -110,6 +149,7 @@ class MyTestCase(unittest.TestCase):
         expected_outward_date = datetime.date(2021, 1, 17)
         expected_output = {
             "intent": "",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -127,10 +167,10 @@ class MyTestCase(unittest.TestCase):
     def test_process_time_depart(self):
         text_example = "14:00"
 
-        expected_outward_date = datetime.date.today()
         expected_outward_time = datetime.time(14,0)
         expected_output = {
             "intent": "",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -140,7 +180,7 @@ class MyTestCase(unittest.TestCase):
             "return_date": "",
             "return_time": "",
             "confirmation": "",
-            "no_category": [expected_outward_date,expected_outward_time],
+            "no_category": [expected_outward_time],
             "raw_message": "14:00"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
@@ -149,6 +189,7 @@ class MyTestCase(unittest.TestCase):
         text_example = "yes"
         expected_output = {
             "intent": "",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -168,6 +209,7 @@ class MyTestCase(unittest.TestCase):
         expected_return_date = datetime.date(2021,1,18)
         expected_output = {
             "intent": "",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -186,6 +228,7 @@ class MyTestCase(unittest.TestCase):
         expected_return_date = datetime.date.today() + timedelta(1)
         expected_output = {
             "intent": "",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -203,6 +246,7 @@ class MyTestCase(unittest.TestCase):
         expected_return_date = datetime.date.today()
         expected_output = {
             "intent": "",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -219,10 +263,10 @@ class MyTestCase(unittest.TestCase):
 
     def test_process_return_time(self):
         text_example = "7pm"
-        expected_return_date = datetime.date.today()
         expected_return_time = datetime.time(19,0)
         expected_output = {
             "intent": "",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -232,7 +276,7 @@ class MyTestCase(unittest.TestCase):
             "return_date": "",
             "return_time": "",
             "confirmation": "",
-            "no_category": [expected_return_date,expected_return_time],
+            "no_category": [expected_return_time],
             "raw_message": "7pm"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
@@ -241,6 +285,7 @@ class MyTestCase(unittest.TestCase):
         text_example = "no"
         expected_output = {
             "intent": "",
+            "includes_greeting": False,
             "from_station": "",
             "from_crs": "",
             "to_station": "",
@@ -264,6 +309,7 @@ class MyTestCase(unittest.TestCase):
         expected_return_time = ""
         expected_output = {
             "intent": "ticket",
+            "includes_greeting": False,
             "from_station": "Norwich",
             "from_crs": "NRW",
             "to_station": "London Liverpool Street",
@@ -283,6 +329,7 @@ class MyTestCase(unittest.TestCase):
         expected_outward_date = datetime.date.today() + timedelta(1)
         expected_output = {
             "intent": "ticket",
+            "includes_greeting": False,
             "from_station": "Norwich",
             "from_crs": "NRW",
             "to_station": "Forest Gate",
@@ -303,6 +350,7 @@ class MyTestCase(unittest.TestCase):
         expected_outward_date = datetime.date.today()
         expected_output = {
             "intent": "ticket",
+            "includes_greeting": False,
             "from_station": "Norwich",
             "from_crs": "NRW",
             "to_station": "Forest Gate",
@@ -325,6 +373,7 @@ class MyTestCase(unittest.TestCase):
         expected_return_time = datetime.time(20,0)
         expected_output = {
             "intent": "ticket",
+            "includes_greeting": False,
             "from_station": "Norwich",
             "from_crs": "NRW",
             "to_station": "Forest Gate",

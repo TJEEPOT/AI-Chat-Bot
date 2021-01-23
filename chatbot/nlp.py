@@ -19,6 +19,7 @@ def parse_user_input(user_input):
     # variables
     processed_input = {
         "intent": "",  # e.g tickets, help, delays
+        "includes_greeting": False, #True if message contained a greeting
         "from_station": "",  # e.g Norwich
         "from_crs": "",  # e.g NRW
         "to_station": "",  # e.g London Liverpool Street
@@ -35,8 +36,11 @@ def parse_user_input(user_input):
     station_crs = []
     station_pairs = {}
     book_ticket = ["book", "TICKET", "travel", "go"]  # maybe get from db
+    greetings = ["hi", "hello", "hey"]
     get_help = ["help", "assistance"]
     delays = ["delay", "late", "behind schedule"]
+    cancellation = ['cancel', 'cancelation', 'cancellation']
+    changes = ['change']
     confirm_yes = ["correct", "yes", "yep", "y"]
     confirm_no = ["incorrect", "no", "wrong"]
 
@@ -56,16 +60,34 @@ def parse_user_input(user_input):
     # build patterns
     station_names_pattern = [nlp.make_doc(text) for text in station_names]
     station_crs_pattern = [nlp.make_doc(text) for text in station_crs]
+    intents_cancel_pattern = [nlp.make_doc(text) for text in cancellation]
+    intents_change_pattern = [nlp.make_doc(text) for text in changes]
     intents_ticket_pattern = [nlp.make_doc(text) for text in book_ticket]
     intents_help_pattern = [nlp.make_doc(text) for text in get_help]
     intents_delays_pattern = [nlp.make_doc(text) for text in delays]
+
     confirm_yes_pattern = [nlp.make_doc(text) for text in confirm_yes]
     confirm_no_pattern = [nlp.make_doc(text) for text in confirm_no]
+    is_greeting_pattern = [nlp.make_doc(text) for text in greetings]
 
     # add match rules
     def on_match_intent(match_matcher, match_doc, match_id, match_matches):
+
         intent = nlp.vocab.strings[match_matches[match_id][0]]
+        print(match_matches)
+        if (len(match_matches) > 1):
+            for match in match_matches:
+                current_match_intent = nlp.vocab.strings[match[0]]
+                if current_match_intent == "cancel" or current_match_intent == "change":
+                    intent = current_match_intent
+                    break
+        print(intent)
         processed_input['intent'] = intent
+
+
+    def on_match_greeting(match_matcher, match_doc, match_id, match_matches):
+        processed_input['includes_greeting'] = True
+
 
     def on_match_station_name(match_matcher, match_doc, match_id, match_matches):
         matched_station = match_matches[match_id]
@@ -131,13 +153,17 @@ def parse_user_input(user_input):
             processed_input['confirmation'] = ""
 
     # add patterns
+    phrase_matcher.add("change", on_match_intent, *intents_change_pattern)
+    phrase_matcher.add("cancel", on_match_intent, *intents_cancel_pattern)
     phrase_matcher.add("ticket", on_match_intent, *intents_ticket_pattern)
     phrase_matcher.add("help", on_match_intent, *intents_help_pattern)
     phrase_matcher.add("delay", on_match_intent, *intents_delays_pattern)
+
     phrase_matcher.add("station_names", on_match_station_name, *station_names_pattern)
     phrase_matcher.add("station_crs", on_match_station_crs, *station_crs_pattern)
     phrase_matcher.add("confirm_yes", on_match_confirm_true, *confirm_yes_pattern)
     phrase_matcher.add("confirm_no", on_match_confirm_false, *confirm_no_pattern)
+    phrase_matcher.add("greeting", on_match_greeting, *is_greeting_pattern)
 
 
     # find dates
@@ -186,7 +212,8 @@ def parse_user_input(user_input):
             for date in found_dates:
                 misc_date = date.date()
                 misc_time = date.time()
-                processed_input['no_category'].append(misc_date)
+                if len(doc) == 1 and date.time() == midnight_time and not midnight_requested:   # must be a date
+                    processed_input['no_category'].append(misc_date)
                 if date.time() != midnight_time or midnight_requested:
                     processed_input['no_category'].append(misc_time)
 
