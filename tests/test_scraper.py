@@ -21,7 +21,7 @@ class TestStringMethods(unittest.TestCase):
         # greater anglia, ensure date and time is correctly formatted, cheapest fare is the first result on page
         cost, time, url = scraper.single_fare("NRW", "LST", "2021/01/29", "16:30")
         self.assertEqual("£10.00", cost)
-        self.assertEqual("16:30", time)
+        self.assertEqual("17:03", time)
         self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/290121/1630/dep", url)
         # print("The cheapest fare is {} departing at {}. Book this ticket at {}".format(fare, time, url))
 
@@ -66,31 +66,31 @@ class TestStringMethods(unittest.TestCase):
     def test_return_same_day(self):
         # testing the same-day return works correctly
         cost, time_out, time_ret, url = scraper.return_fare(
-            "NRW", "LST", "2021/01/21", "16:30", "2021/01/21", "18:00")
+            "NRW", "LST", "2021/01/29", "16:30", "2021/01/29", "18:00")
         self.assertEqual("£20.00", cost)
-        self.assertEqual("16:30", time_out)
+        self.assertEqual("17:03", time_out)
         self.assertEqual("20:30", time_ret)
-        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/210121/1630/dep/210121"
+        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/290121/1630/dep/290121"
                          "/1800/dep", url)
 
     def test_return_separate_days(self):
         # out and return are different days
         cost, time_out, time_ret, url = scraper.return_fare(
-            "NRW", "LST", "2021/01/21", "16:30", "2021/01/29", "18:00")
+            "NRW", "LST", "2021/01/29", "16:30", "2021/02/05", "18:00")
         self.assertEqual("£20.00", cost)
-        self.assertEqual("16:30", time_out)
+        self.assertEqual("17:03", time_out)
         self.assertEqual("20:30", time_ret)
-        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/210121/1630/dep/290121"
+        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/290121/1630/dep/050221"
                          "/1800/dep", url)
 
     def test_return_one_price(self):
         # only one price is given for out and return journeys
         cost, time_out, time_ret, url = scraper.return_fare(
-            "NRW", "LST", "2021/01/21", "16:30", "2021/01/24", "05:00")
+            "NRW", "LST", "2021/01/29", "16:30", "2021/02/01", "05:00")
         self.assertEqual("£58.30", cost)
         self.assertEqual("16:30", time_out)
         self.assertEqual("06:28", time_ret)
-        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/210121/1630/dep/240121"
+        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/290121/1630/dep/010221"
                          "/0500/dep", url)
 
     def test_return_past_date(self):

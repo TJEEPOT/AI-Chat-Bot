@@ -12,14 +12,39 @@ class MyTestCase(unittest.TestCase):
         data = ["201701267101240", "NRCH", "", "", "06:00", "", "", "", "", "", "06:01"]
         source, date, delay = process.entry_to_query(data)
         dest     = "DISS"
-        network  = services.build_ga_intercity()
+        network  = services.get_network()
         path     = network.find_path(source, dest)
         stn_from = path[0]
         stn_to   = path[1]
-        processed_entry    = process.query_to_input(stn_from, stn_to, date, delay)
-        processed_entry[0] = processed_entry[0].get_id()
-        processed_entry[1] = processed_entry[1].get_id()
-        self.assertEqual(["NRCH", "DISS", 4, 1, 0, 6, 1], processed_entry)
+        processed_entry    = process.query_to_input(stn_from, stn_to, date)
+        self.assertEqual(["NRCH", "DISS", 4, 1, 0, 6], processed_entry)
+
+    def test_transform_data_arrived_next_day(self):
+        data = ["201810097681184", "STFD", "23:54:30", "", "", "", "", "", "00:00", "", ""]
+        source, date, delay = process.entry_to_query(data)
+        dest     = "BTHNLGR"
+        network  = services.get_network()
+        path     = network.find_path(source, dest)
+        stn_from = path[0]
+        stn_to   = path[1]
+        processed_entry = process.query_to_input(stn_from, stn_to, date)
+
+        self.assertEqual(["STFD", "BTHNLGR", 2, 1, 1, 23], processed_entry)
+        self.assertEqual(6, delay)
+
+    def test_transform_data_arrived_prev_day(self):
+        data = ["201810097681184", "BTHNLGR", "00:01:30", "", "", "", "", "", "23:59", "", ""]
+        source, date, delay = process.entry_to_query(data)
+        dest     = "LIVST"
+        network  = services.get_network()
+        path     = network.find_path(source, dest)
+        stn_from = path[0]
+        stn_to   = path[1]
+        processed_entry = process.query_to_input(stn_from, stn_to, date)
+
+        self.assertEqual(["BTHNLGR", "LIVST", 2, 1, 1, 0], processed_entry)
+        self.assertEqual(-2, delay)
+        
 
     # dropping the rest of these tests for now since they need to be rewritten as above to work right now,
     # but I'll be making changes to process_data.py soon to remove the network requirement from query_to_input
