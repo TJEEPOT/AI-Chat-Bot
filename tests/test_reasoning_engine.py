@@ -1,6 +1,5 @@
 import unittest
 from context import re
-from model.reasoning_engine import process_user_input
 
 
 class TestReasoningEngine(unittest.TestCase):
@@ -18,7 +17,7 @@ class TestReasoningEngine(unittest.TestCase):
             'no_category': [],
             'raw_message': 'I want to travel from norwich to london liverpool street on 01/01/2020 at 12pm nrw yes'
         }
-        self.assertEqual(True, process_user_input(processed_nlp_output))
+        self.assertEqual(True, re.process_user_input(processed_nlp_output))
 
     def test_from_station(self):
         self.assertEqual(True, False)
