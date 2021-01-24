@@ -5,24 +5,7 @@ from chatbot.nlp import parse_user_input,check_spellings,remove_punctuation,sani
 
 class MyTestCase(unittest.TestCase):
     date_today = datetime.date.today()
-    processed_input_base = {
-        "intent": "",                     # e.g tickets, help, delays
-        "reset": False,
-        "includes_greeting": False,
-        "from_station": "",               # e.g Norwich
-        "from_crs": "",                   # e.g NRW
-        "to_station": "",                 # e.g London Liverpool Street
-        "to_crs": "",                     # e.g LST
-        "outward_date": "",               # e.g 20/01/2021
-        "outward_time": "",               # e.g 10:00
-        "return_date": "",                # e.g 20/01/2021 (checks done in RE for future date etc)
-        "return_time": "",                # e.g 10:00
-        "confirmation": "",               # e.g true / false response for bot asking confirmation
-        "no_category": [],                # any extra data NLP can't work out intent for
-        "suggestion": [],                 # for station fuzzy matching
-        "sanitized_message": "",          # raw message after being sanitized
-        "raw_message": ""                 # raw message input by user for history etc
-    }
+
     def test_process_intent(self):
         text_example = "book tickets"
         expected_output = {
