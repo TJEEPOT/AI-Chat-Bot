@@ -22,9 +22,9 @@ import sqlite3
 import datetime
 from experta import *
 import random
-from fuzzywuzzy import process
 from chatbot.presenter import send_message
 from model.scraper import single_fare, return_fare
+from data.process_data import user_to_query
 
 __author__ = "Steven Diep"
 __credits__ = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
@@ -65,12 +65,17 @@ bot_feedback = {
         "What station are you going from?",
         "What station are you travelling from?"
     ],
+    "ask_current_location": [
+        "What station are you currently at now?",
+        "Where are you currently?",
+        "What station are you delayed at?"
+    ],
     'ask_to_location': [
         "Where is your destination?",
         "Where are you travelling to?",
         "Please tell me the station you are arriving at.",
         "What station are you going to?",
-        "What station are you travelling to",
+        "What station are you travelling to?",
         "Where is the station you are arriving at?"
     ],
     'show_wrong_station': [
@@ -236,8 +241,6 @@ class Chatbot(KnowledgeEngine):
         if 'intent' in self.dictionary and self.dictionary.get('intent') != '':
             self.currentInfo['intent'] = self.dictionary.get('intent')
             self.declare(Fact(queryType=self.dictionary.get('intent')))
-            '''if self.dictionary.get('intent') == 'help':
-                self.dictionary['intent'] = '''''
         else:
             if self.dictionary.get('includes_greeting'):
                 send_message(random.choice(bot_feedback['greeting']))
@@ -263,7 +266,7 @@ class Chatbot(KnowledgeEngine):
                              'provide some form of extra assistance regarding ticket information (where you are now), '
                              'and most of all provides the cheapest train ticket through user input')
             elif self.dictionary.get('intent') == 'cancel':
-                send_message("For more information on cancelling your ticket please visit "
+                send_message("For more information on cancelling your ticket please visit: "
                              "<a href=https://www.greateranglia.co.uk/contact-us/faqs/refunds>Link</a> ")
             elif self.dictionary.get('intent') == 'change':
                 send_message("If you would like to make adjustments to your ticket please use the link provided: "
@@ -294,17 +297,41 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(departure_location=self.dictionary.get('no_category')[0], departCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
+        elif self.dictionary.get('suggestion') and not self.dictionary.get('no_category'):
+            for station_or_location in range(len(self.dictionary.get('suggestion'))):
+                if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
+                        self.dictionary.get('from_station') != \
+                        self.dictionary.get('suggestion')[station_or_location]['station'] \
+                        and self.dictionary.get('to_station') != \
+                        self.dictionary.get('suggestion')[station_or_location]['station']:
+                    send_message("Did you mean " + self.dictionary['suggestion'][station_or_location]['station'] + "?")
+                elif 'location' in self.dictionary.get('suggestion')[station_or_location]:
+                    conn = sqlite3.connect(r'..\data\db.sqlite')
+                    c = conn.cursor()
+                    c.execute("SELECT name FROM stations WHERE county=:location ORDER BY served_2019 DESC",
+                              {'location': self.dictionary['suggestion'][station_or_location]['location']})
+                    top_5_stations = c.fetchmany(5)
+                    string = ""
+                    count = 0
+                    for list_all in top_5_stations:
+                        string += str(list_all[0])
+                        count += 1
+                        if count < len(top_5_stations):
+                            string += ", "
+                    send_message("The station you would like to depart from share similar names with the location you "
+                                 "entered, here is a list a of possible stations you may be referring to: " + string)
+                    break
         else:
-            if self.dictionary.get('intent') != '' or self.dictionary.get('no_category'):
+            if self.dictionary.get('intent') == 'ticket':  # or self.dictionary.get('no_category')
                 send_message(random.choice(bot_feedback['ask_from_location']))
+            elif self.dictionary.get('intent') == 'delay':
+                send_message(random.choice(bot_feedback['ask_current_location']))
             else:
                 self.dictionary.get('raw_message')
-                # check raw message
-                # start fuzzy matching
-                # if cant find anything send message below
                 send_message(random.choice(bot_feedback['no_answer']))
 
-    @Rule(Fact(departure_location=W()),
+    @Rule(Fact(queryType=L('ticket') | L('delay')),
+          Fact(departure_location=W()),
           NOT(Fact(arrival_location=W())),
           salience=44)
     def ask_arrival_station(self):
@@ -325,6 +352,30 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(arrival_location=self.dictionary.get('no_category')[0], arriveCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
+        elif self.dictionary.get('suggestion') and not self.dictionary.get('no_category'):
+            for station_or_location in range(len(self.dictionary.get('suggestion'))):
+                if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
+                        self.dictionary.get('from_station') != \
+                        self.dictionary.get('suggestion')[station_or_location]['station'] \
+                        and self.dictionary.get('to_station') != \
+                        self.dictionary.get('suggestion')[station_or_location]['station']:
+                    send_message("Did you mean " + self.dictionary['suggestion'][station_or_location]['station'] + "?")
+                elif 'location' in self.dictionary.get('suggestion')[station_or_location]:
+                    conn = sqlite3.connect(r'..\data\db.sqlite')
+                    c = conn.cursor()
+                    c.execute("SELECT name FROM stations WHERE county=:location ORDER BY served_2019 DESC",
+                              {'location': self.dictionary['suggestion'][station_or_location]['location']})
+                    top_5_stations = c.fetchmany(5)
+                    string = ""
+                    count = 0
+                    for list_all in top_5_stations:
+                        string += str(list_all[0])
+                        count += 1
+                        if count < len(top_5_stations):
+                            string += ", "
+                    send_message("The station you would like to arrive at share similar names with the location you "
+                                 "entered, here is a list a of possible stations you may be referring to: " + string)
+                    break
         else:
             if self.dictionary.get('from_station') != '' or self.dictionary.get('no_category'):
                 send_message(random.choice(bot_feedback['ask_to_location']))
@@ -332,6 +383,7 @@ class Chatbot(KnowledgeEngine):
                 self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['no_answer']))
 
+    # TODO wait on martin tomorrow to fix the problem
     @Rule(Fact(departure_location=MATCH.departure_location),
           Fact(arrival_location=MATCH.arrival_location),
           Fact(queryType='delay'),
@@ -339,14 +391,25 @@ class Chatbot(KnowledgeEngine):
     def ask_time_delayed(self, departure_location, arrival_location):
         if 'raw_message' in self.dictionary and self.dictionary.get('raw_message') != '' and \
                 not self.dictionary.get('no_category'):
+            stations = [departure_location, arrival_location]
+            tpl_stations = []
+            conn = sqlite3.connect(r'..\data\db.sqlite')
+            c = conn.cursor()
+            for find_tpl in stations:
+                c.execute("SELECT tpl FROM stations WHERE name=:location", {'location': find_tpl})
+                tpl = c.fetchone()
+                tpl_stations.append(tpl[0])
             delay_time = self.dictionary.get('raw_message').split()
             for minutes in delay_time:
                 if minutes.isdigit():
-                    print("time delayed:", minutes)
-                    print("departure location:", departure_location)
-                    print("arrival_location:", arrival_location)
+                    print(user_to_query(tpl_stations[0], tpl_stations[1], minutes))
+                    send_message("Departure location: " + departure_location + "<br>"
+                                    "Arrival location: " + arrival_location + "<br>"
+                                    "Minutes you were delayed by: " + minutes + "<br>"
+                                    "Minutes you will be delayed till your final destination: " +
+                                    str(user_to_query(tpl_stations[0], tpl_stations[1], minutes)))
         else:
-            if self.dictionary.get('to_station') != '':
+            if self.dictionary.get('to_station') != '' or self.dictionary.get('no_category'):
                 send_message(random.choice(bot_feedback['ask_time_delayed']))  # TODO reset here
             else:
                 self.dictionary.get('raw_message')
@@ -364,15 +427,19 @@ class Chatbot(KnowledgeEngine):
             else:
                 send_message(random.choice(bot_feedback['past_date']))
         elif 'outward_date' not in self.currentInfo and self.dictionary.get('no_category') and \
-                self.dictionary.get('no_category')[0] != self.currentInfo.get('to_station'):
+                self.dictionary.get('no_category')[0] != self.currentInfo.get('to_station') and \
+                isinstance(self.dictionary.get('no_category')[0], datetime.date):
             if datetime.date.today() <= self.dictionary.get('no_category')[0]:
                 self.currentInfo['outward_date'] = self.dictionary.get('no_category')[0]
                 self.declare(Fact(departure_date=self.dictionary.get('no_category')[0]))
             else:
                 send_message(random.choice(bot_feedback['past_date']))
         else:
-            if self.dictionary.get('to_from') != '' or self.dictionary.get('no_category'):
+            if 'from_station' in self.currentInfo and (
+                    self.dictionary.get('to_from') != '' or self.dictionary.get('no_category')):
                 send_message(random.choice(bot_feedback['ask_date']))
+            elif 'from_station' not in self.currentInfo:
+                pass
             else:
                 self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['invalid_date']))
@@ -530,14 +597,32 @@ class Chatbot(KnowledgeEngine):
             else:
                 self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['no_answer']))
-    #TODO still need to figure out to adjust info
+
+    # TODO still need to figure out to adjust info
     @Rule(Fact(correct_booking=False),
           salience=28)
     def ask_adjustment(self):
-        if self.dictionary.get('intent') == 'change' and self.dictionary.get('from_station') != '' or self.dictionary.get('to_station') != '' or \
-                self.dictionary.get('outward_date') != '' or self.dictionary.get('outward_time') != '' or \
-                self.dictionary.get('return_date') != '' or self.dictionary.get('return_time') != '':
-            pass
+        if self.dictionary.get('intent') == 'change' and (
+                self.dictionary.get('from_station') != '' or self.dictionary.get('to_station') != '' or
+                self.dictionary.get('outward_date') != '' or self.dictionary.get('outward_time') != '' or
+                self.dictionary.get('return_date') != '' or self.dictionary.get('return_time') != '' or
+                self.dictionary.get('no_category')):
+            if self.dictionary.get('from_station') != '':
+                self.currentInfo['from_station'] = self.dictionary.get('from_station')
+            elif self.dictionary.get('to_station') != '':
+                self.currentInfo['to_station'] = self.dictionary.get('to_station')
+            elif self.dictionary.get('outward_date') != '':
+                self.currentInfo['outward_date'] = self.dictionary.get('outward_date')
+            elif self.dictionary.get('outward_time') != '':
+                self.currentInfo['outward_time'] = self.dictionary.get('outward_time')
+            elif self.dictionary.get('return_date') != '':
+                self.currentInfo['return_date'] = self.dictionary.get('return_date')
+            elif self.dictionary.get('return_time') != '':
+                self.currentInfo['return_time'] = self.dictionary.get('return_time')
+            elif self.dictionary.get('no_category'):  # TODO could be location or datetime
+                self.currentInfo['to_station'] = self.dictionary.get('from_station')
+            else:
+                send_message(random.choice(bot_feedback['no_answer']))
         else:
             if self.dictionary.get('confirmation') != '':
                 send_message("What would you like to adjust?")
