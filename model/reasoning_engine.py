@@ -37,13 +37,17 @@ __status__ = "Prototype"  # "Development" "Prototype" "Production"
 now = datetime.datetime.now()
 current_hour_minute = datetime.time(now.hour, now.minute)
 
+all_current_info = ['intent', 'from_station', 'to_station', 'from_crs', 'to_crs', 'outward_date',
+                                'outward_time', 'return_date', 'return_time', 'confirmation_return',
+                                'correct_booking']
+
 bot_feedback = {
     'greeting': [
         "Hello!",
         "Welcome!",
         "Hello, how may I help you today?",
         "Hi!",
-        "Hey"
+        "Hey!"
     ],
     'query': [
         "I can assist you with booking tickets, provide general information regarding train services "
@@ -232,8 +236,6 @@ class Chatbot(KnowledgeEngine):
         if 'correct_booking' in self.currentInfo:
             yield Fact(correct_booking=self.currentInfo.get('correct_booking'))
 
-    # TODO when sam finishes 'reset' in dict all_current info may have to be global
-
     @Rule(Fact(action='begin'),
           NOT(Fact(queryType=W())),
           salience=50)
@@ -271,6 +273,14 @@ class Chatbot(KnowledgeEngine):
             elif self.dictionary.get('intent') == 'change':
                 send_message("If you would like to make adjustments to your ticket please use the link provided: "
                              "<a href=https://www.greateranglia.co.uk/contact-us/faqs/tickets>Link</a>")
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if self.dictionary.get('intent') == 'help':
                 send_message(random.choice(bot_feedback['ask_help']))
@@ -320,6 +330,14 @@ class Chatbot(KnowledgeEngine):
                             string += ", "
                     send_message("The station you would like to depart from share similar names with the location you "
                                  "entered, here is a list a of possible stations you may be referring to: " + string)
+                    break
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
                     break
         else:
             if self.dictionary.get('intent') == 'ticket':  # or self.dictionary.get('no_category')
@@ -376,6 +394,14 @@ class Chatbot(KnowledgeEngine):
                     send_message("The station you would like to arrive at share similar names with the location you "
                                  "entered, here is a list a of possible stations you may be referring to: " + string)
                     break
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if self.dictionary.get('from_station') != '' or self.dictionary.get('no_category'):
                 send_message(random.choice(bot_feedback['ask_to_location']))
@@ -402,12 +428,21 @@ class Chatbot(KnowledgeEngine):
             delay_time = self.dictionary.get('raw_message').split()
             for minutes in delay_time:
                 if minutes.isdigit():
-                    print(user_to_query(tpl_stations[0], tpl_stations[1], minutes))
+                    print(tpl_stations[0])
+                    print(int(minutes))
+                    print(user_to_query(tpl_stations[0], tpl_stations[1], int(minutes)))
                     send_message("Departure location: " + departure_location + "<br>"
                                     "Arrival location: " + arrival_location + "<br>"
                                     "Minutes you were delayed by: " + minutes + "<br>"
-                                    "Minutes you will be delayed till your final destination: " +
-                                    str(user_to_query(tpl_stations[0], tpl_stations[1], minutes)))
+                                    "Minutes you will be delayed till your final destination: ")
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if self.dictionary.get('to_station') != '' or self.dictionary.get('no_category'):
                 send_message(random.choice(bot_feedback['ask_time_delayed']))  # TODO reset here
@@ -434,6 +469,14 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(departure_date=self.dictionary.get('no_category')[0]))
             else:
                 send_message(random.choice(bot_feedback['past_date']))
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if 'from_station' in self.currentInfo and (
                     self.dictionary.get('to_from') != '' or self.dictionary.get('no_category')):
@@ -461,6 +504,14 @@ class Chatbot(KnowledgeEngine):
             else:
                 self.currentInfo['outward_time'] = self.dictionary.get('no_category')[0]
                 self.declare(Fact(leaving_time=self.dictionary.get('no_category')[0]))
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if self.dictionary.get('outward_date') != '' or self.dictionary.get('no_category'):
                 send_message(random.choice(bot_feedback['ask_time']))
@@ -483,6 +534,14 @@ class Chatbot(KnowledgeEngine):
                 self.dictionary['confirmation'] = ''
             else:
                 self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if self.dictionary.get('outward_time') != '' or self.dictionary.get('no_category'):
                 send_message(random.choice(bot_feedback['ask_return']))
@@ -507,6 +566,14 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(return_date=self.dictionary.get('no_category')[0]))
             else:
                 send_message(random.choice(bot_feedback['past_departure_date']))
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if self.dictionary.get('confirmation') != '':
                 send_message(random.choice(bot_feedback['ask_return_date']))
@@ -533,6 +600,14 @@ class Chatbot(KnowledgeEngine):
             else:
                 self.currentInfo['return_time'] = self.dictionary.get('no_category')[0]
                 self.declare(Fact(return_time=self.dictionary.get('no_category')[0]))
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if self.dictionary.get('return_date') != '' or self.dictionary.get('no_category'):
                 send_message(random.choice(bot_feedback['ask_return_time']))
@@ -580,6 +655,14 @@ class Chatbot(KnowledgeEngine):
             else:
                 self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to ask adjustment
                 self.dictionary['confirmation'] = ''
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if self.dictionary.get('return_time') != '' or self.dictionary.get('confirmation') != '' or \
                     self.dictionary.get('no_category'):
@@ -623,6 +706,14 @@ class Chatbot(KnowledgeEngine):
                 self.currentInfo['to_station'] = self.dictionary.get('from_station')
             else:
                 send_message(random.choice(bot_feedback['no_answer']))
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if self.dictionary.get('confirmation') != '':
                 send_message("What would you like to adjust?")
@@ -634,9 +725,6 @@ class Chatbot(KnowledgeEngine):
     def next_query(self):
         if 'confirmation' in self.dictionary and \
                 (self.dictionary.get('confirmation') != '' or self.dictionary.get('intent') != ''):
-            all_current_info = ['intent', 'from_station', 'to_station', 'from_crs', 'to_crs', 'outward_date',
-                                'outward_time', 'return_date', 'return_time', 'confirmation_return',
-                                'correct_booking']
             if self.dictionary.get('confirmation'):
                 send_message("What can I help you with?")
             elif not self.dictionary.get('confirmation'):
@@ -669,6 +757,14 @@ class Chatbot(KnowledgeEngine):
                         del self.currentInfo[key]
                 self.currentInfo['intent'] = self.dictionary.get('intent')
                 engine.reset()
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
             if self.dictionary.get('confirmation') == '':
                 send_message("Is there anything else I can help you with?")
