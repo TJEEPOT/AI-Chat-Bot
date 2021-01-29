@@ -185,10 +185,14 @@ bot_feedback = {
         "Sorry we could not find your ticket"
     ],
     'show_gratitude': [
-        "Thank you for using my service!"
+        "Thank you for using my service!",
+        "Thank you, please use my service again",
+
     ],
     'ask_adjustment': [
-        "What would you like to adjust?"
+        "What would you like to adjust?",
+        "What do you need to adjust?",
+
     ],
     'next_query': [
         "Is there anything else I can help you with?",
@@ -198,6 +202,9 @@ bot_feedback = {
         "Good evening, you dense bastard. Did you get kicked in the head by a horse? "
         "Hurry up and answer appropriately, you silly imbecile. I am giving you five seconds to respond "
         "or else I will step out your screen to blow off your kneecaps"
+    ],
+    'reset': [
+        "Okay I will forget everything you have entered."
     ]
 }
 
@@ -274,7 +281,7 @@ class Chatbot(KnowledgeEngine):
                 send_message("If you would like to make adjustments to your ticket please use the link provided: "
                              "<a href=https://www.greateranglia.co.uk/contact-us/faqs/tickets>Link</a>")
         elif self.dictionary.get('reset'):
-            send_message("Okay I will forget everything you have entered.")
+            send_message(random.choice(bot_feedback['reset']))
             engine.reset()
             for key in all_current_info:
                 if key in self.currentInfo:
@@ -332,7 +339,7 @@ class Chatbot(KnowledgeEngine):
                                  "entered, here is a list a of possible stations you may be referring to: " + string)
                     break
         elif self.dictionary.get('reset'):
-            send_message("Okay I will forget everything you have entered.")
+            send_message(random.choice(bot_feedback['reset']))
             engine.reset()
             for key in all_current_info:
                 if key in self.currentInfo:
@@ -395,7 +402,7 @@ class Chatbot(KnowledgeEngine):
                                  "entered, here is a list a of possible stations you may be referring to: " + string)
                     break
         elif self.dictionary.get('reset'):
-            send_message("Okay I will forget everything you have entered.")
+            send_message(random.choice(bot_feedback['reset']))
             engine.reset()
             for key in all_current_info:
                 if key in self.currentInfo:
@@ -436,7 +443,7 @@ class Chatbot(KnowledgeEngine):
                                     "Minutes you were delayed by: " + minutes + "<br>"
                                     "Minutes you will be delayed till your final destination: ")
         elif self.dictionary.get('reset'):
-            send_message("Okay I will forget everything you have entered.")
+            send_message(random.choice(bot_feedback['reset']))
             engine.reset()
             for key in all_current_info:
                 if key in self.currentInfo:
@@ -470,7 +477,7 @@ class Chatbot(KnowledgeEngine):
             else:
                 send_message(random.choice(bot_feedback['past_date']))
         elif self.dictionary.get('reset'):
-            send_message("Okay I will forget everything you have entered.")
+            send_message(random.choice(bot_feedback['reset']))
             engine.reset()
             for key in all_current_info:
                 if key in self.currentInfo:
@@ -505,7 +512,7 @@ class Chatbot(KnowledgeEngine):
                 self.currentInfo['outward_time'] = self.dictionary.get('no_category')[0]
                 self.declare(Fact(leaving_time=self.dictionary.get('no_category')[0]))
         elif self.dictionary.get('reset'):
-            send_message("Okay I will forget everything you have entered.")
+            send_message(random.choice(bot_feedback['reset']))
             engine.reset()
             for key in all_current_info:
                 if key in self.currentInfo:
@@ -535,7 +542,7 @@ class Chatbot(KnowledgeEngine):
             else:
                 self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
         elif self.dictionary.get('reset'):
-            send_message("Okay I will forget everything you have entered.")
+            send_message(random.choice(bot_feedback['reset']))
             engine.reset()
             for key in all_current_info:
                 if key in self.currentInfo:
@@ -683,29 +690,25 @@ class Chatbot(KnowledgeEngine):
 
     # TODO still need to figure out to adjust info
     @Rule(Fact(correct_booking=False),
+          Fact(return_or_not=MATCH.return_or_not),
           salience=28)
-    def ask_adjustment(self):
-        if self.dictionary.get('intent') == 'change' and (
-                self.dictionary.get('from_station') != '' or self.dictionary.get('to_station') != '' or
-                self.dictionary.get('outward_date') != '' or self.dictionary.get('outward_time') != '' or
-                self.dictionary.get('return_date') != '' or self.dictionary.get('return_time') != '' or
-                self.dictionary.get('no_category')):
-            if self.dictionary.get('from_station') != '':
-                self.currentInfo['from_station'] = self.dictionary.get('from_station')
-            elif self.dictionary.get('to_station') != '':
-                self.currentInfo['to_station'] = self.dictionary.get('to_station')
-            elif self.dictionary.get('outward_date') != '':
-                self.currentInfo['outward_date'] = self.dictionary.get('outward_date')
-            elif self.dictionary.get('outward_time') != '':
-                self.currentInfo['outward_time'] = self.dictionary.get('outward_time')
-            elif self.dictionary.get('return_date') != '':
-                self.currentInfo['return_date'] = self.dictionary.get('return_date')
-            elif self.dictionary.get('return_time') != '':
-                self.currentInfo['return_time'] = self.dictionary.get('return_time')
-            elif self.dictionary.get('no_category'):  # TODO could be location or datetime
-                self.currentInfo['to_station'] = self.dictionary.get('from_station')
-            else:
-                send_message(random.choice(bot_feedback['no_answer']))
+    def ask_adjustment(self, return_or_not):
+        if self.dictionary.get('raw_message') == '1':
+            del self.currentInfo['from_station']
+        elif self.dictionary.get('raw_message') == '2':
+            del self.currentInfo['to_station']
+        elif self.dictionary.get('raw_message') == '3':
+            del self.currentInfo['outward_date']
+        elif self.dictionary.get('raw_message') == '4':
+            del self.currentInfo['outward_time']
+        elif self.dictionary.get('raw_message') == '5':
+            del self.currentInfo['confirmation_return']
+            del self.currentInfo['return_date']
+            del self.currentInfo['return_time']
+        elif self.dictionary.get('raw_message') == '6':
+            del self.currentInfo['return_date']
+        elif self.dictionary.get('raw_message') == '7':
+            del self.currentInfo['return_time']
         elif self.dictionary.get('reset'):
             send_message("Okay I will forget everything you have entered.")
             engine.reset()
@@ -716,7 +719,19 @@ class Chatbot(KnowledgeEngine):
                     break
         else:
             if self.dictionary.get('confirmation') != '':
-                send_message("What would you like to adjust?")
+                no_return = "To adjust your ticket information enter the following number:" \
+                             "1 - Departure location" \
+                             "2 - Arrival location" \
+                             "3 - Departure date" \
+                             "4 - Departure time" \
+                             "5 - Change to single/return"
+                if return_or_not:
+                    returning = no_return + \
+                                "6 - Return date" \
+                                "7 - Return time"
+                    send_message(returning)          #random.choice(bot_feedback['ask_adjustment'])
+                else:
+                    send_message(no_return)
             else:
                 send_message(random.choice(bot_feedback['no_answer']))
 
@@ -726,12 +741,12 @@ class Chatbot(KnowledgeEngine):
         if 'confirmation' in self.dictionary and \
                 (self.dictionary.get('confirmation') != '' or self.dictionary.get('intent') != ''):
             if self.dictionary.get('confirmation'):
-                send_message("What can I help you with?")
+                send_message(random.choice(bot_feedback['next_query']))
             elif not self.dictionary.get('confirmation'):
                 for key in all_current_info:
                     if key in self.currentInfo:
                         del self.currentInfo[key]
-                send_message("Thank you for using our service!")
+                send_message(random.choice(bot_feedback['show_gratitude']))
                 engine.reset()
             elif self.dictionary.get('intent') == 'ticket':
                 all_current_info.pop(0)
@@ -767,7 +782,7 @@ class Chatbot(KnowledgeEngine):
                     break
         else:
             if self.dictionary.get('confirmation') == '':
-                send_message("Is there anything else I can help you with?")
+                send_message(random.choice(bot_feedback['next_query']))
             else:
                 send_message(random.choice(bot_feedback['no_answer']))
 
