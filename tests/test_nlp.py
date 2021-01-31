@@ -449,6 +449,33 @@ class MyTestCase(unittest.TestCase):
             "raw_message": "i want a ticket to lodnon"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
+
+    def test_process_input_sepdate(self):
+        self.maxDiff = None
+        text_example = "I want to travel from Norwich to London Liverpool street tomorrow at 5pm"
+        expected_outward_date = datetime.date.today() + timedelta(1)
+        expected_outward_time = datetime.time(17, 0)
+        expected_output = {
+            "intent": "ticket",
+            "reset": False,
+            "includes_greeting": False,
+            "from_station": "Norwich",
+            "from_crs": "NRW",
+            "to_station": "London Liverpool Street",
+            "to_crs": "LST",
+            "outward_date": expected_outward_date,
+            "outward_time": expected_outward_time,
+            "return_date": "",
+            "return_time": "",
+            "confirmation": "",
+            "no_category": [],
+            "suggestion": [],  # for station fuzzy matching
+            "sanitized_message": "i want to travel from norwich to london liverpool street tomorrow at 5pm",  # raw message after being sanitized
+            "raw_message": "I want to travel from Norwich to London Liverpool street tomorrow at 5pm"
+        }
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
+
+
     def test_process_input_long_fog(self):
         self.maxDiff = None
         text_example = "I would like to book a ticket from Norwich to Forest Gate on 2021/09/09 at 12:00 and returning on 2021/09/09 at 20:00"
@@ -478,13 +505,34 @@ class MyTestCase(unittest.TestCase):
         print (parse_user_input(text_example))
         self.assertDictEqual(expected_output, parse_user_input(text_example))
 
+
+    def test_location_specific(self):
+        text_example = "Tonbridge"
+        expected_output = {
+            "intent": "",
+            "reset": False,
+            "includes_greeting": False,
+            "from_station": "",
+            "from_crs": "",
+            "to_station": "",
+            "to_crs": "",
+            "outward_date": "",
+            "outward_time": "",
+            "return_date": "",
+            "return_time": "",
+            "confirmation": "",
+            "no_category": ["Tonbridge"],
+            "suggestion": [{'station': 'Tonbridge'}], # for station fuzzy matching
+            "sanitized_message": "tonbridge", #raw message after being sanitized
+            "raw_message": "Tonbridge"
+        }
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
     def test_fuzzymatching(self):
         text_example = "match me"
 
 
 
     def test_spellcheck(self):
-
         text_example = "I want to travle to lodnon"
         print(f'Original: {text_example}')
         expected_result = "I want to travel to london"
