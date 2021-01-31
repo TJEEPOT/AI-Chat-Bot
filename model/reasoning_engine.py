@@ -302,7 +302,8 @@ class Chatbot(KnowledgeEngine):
             self.currentInfo['from_station'] = self.dictionary.get('from_station')
             self.currentInfo['from_crs'] = self.dictionary.get('from_crs')
             self.declare(Fact(departure_location=self.dictionary.get('from_station')))
-        elif 'from_station' not in self.currentInfo and self.dictionary.get('no_category'):
+        elif 'from_station' not in self.currentInfo and self.dictionary.get('no_category') and \
+                isinstance(self.dictionary.get('no_category')[0], str):
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
@@ -314,7 +315,7 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(departure_location=self.dictionary.get('no_category')[0], departCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
-        elif self.dictionary.get('suggestion') and not self.dictionary.get('no_category'):
+        elif self.dictionary.get('suggestion'):
             for station_or_location in range(len(self.dictionary.get('suggestion'))):
                 if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
                         self.dictionary.get('from_station') != \
@@ -322,6 +323,7 @@ class Chatbot(KnowledgeEngine):
                         and self.dictionary.get('to_station') != \
                         self.dictionary.get('suggestion')[station_or_location]['station']:
                     send_message("Did you mean " + self.dictionary['suggestion'][station_or_location]['station'] + "?")
+                    break
                 elif 'location' in self.dictionary.get('suggestion')[station_or_location]:
                     conn = sqlite3.connect(r'..\data\db.sqlite')
                     c = conn.cursor()
@@ -365,7 +367,8 @@ class Chatbot(KnowledgeEngine):
             self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
             self.declare(Fact(arrival_location=self.dictionary.get('to_station')))
         elif 'to_station' not in self.currentInfo and self.dictionary.get('no_category') and \
-                self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station'):
+                self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station') and \
+                isinstance(self.dictionary.get('no_category')[0], str):
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
@@ -377,7 +380,7 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(arrival_location=self.dictionary.get('no_category')[0], arriveCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
-        elif self.dictionary.get('suggestion') and not self.dictionary.get('no_category'):
+        elif self.dictionary.get('suggestion'):
             for station_or_location in range(len(self.dictionary.get('suggestion'))):
                 if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
                         self.dictionary.get('from_station') != \
@@ -385,6 +388,7 @@ class Chatbot(KnowledgeEngine):
                         and self.dictionary.get('to_station') != \
                         self.dictionary.get('suggestion')[station_or_location]['station']:
                     send_message("Did you mean " + self.dictionary['suggestion'][station_or_location]['station'] + "?")
+                    break
                 elif 'location' in self.dictionary.get('suggestion')[station_or_location]:
                     conn = sqlite3.connect(r'..\data\db.sqlite')
                     c = conn.cursor()
@@ -538,7 +542,6 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
                 self.declare(Fact(return_date=' '))
                 self.declare(Fact(return_time=' '))
-                self.dictionary['confirmation'] = ''
             else:
                 self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
         elif self.dictionary.get('reset'):
@@ -622,7 +625,7 @@ class Chatbot(KnowledgeEngine):
                 self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['invalid_time']))
 
-    @Rule(Fact(return_or_not=MATCH.return_or_not),
+    '''@Rule(Fact(return_or_not=MATCH.return_or_not),
           Fact(departure_location=MATCH.departure_location, departCRS=MATCH.departCRS),
           Fact(arrival_location=MATCH.arrival_location, arriveCRS=MATCH.arriveCRS),
           Fact(departure_date=MATCH.departure_date),
@@ -647,8 +650,7 @@ class Chatbot(KnowledgeEngine):
                                  + "<br>Total cost: " + str(cost)
                                  + "<br>Time outward: " + str(time_out)
                                  + "<br>Time return: " + str(time_ret)
-                                 + "<br>URL: " + "<a href=" + str(url) + ">Link to ticket</a>")
-                    # TODO if theres no ticket? maybe list multiple tickets in a 30 min range
+                                 + "<br>URL: " + "<a href=" + str(url) + "target=_blank rel = noopener noreferrer >Link to ticket</a>")
                 else:
                     cost, time, url = single_fare(departCRS, arriveCRS,
                                                   str(departure_date).replace('-', '/'),
@@ -686,9 +688,75 @@ class Chatbot(KnowledgeEngine):
                     send_message(no_return)
             else:
                 self.dictionary.get('raw_message')
-                send_message(random.choice(bot_feedback['no_answer']))
+                send_message(random.choice(bot_feedback['no_answer']))'''
 
-    # TODO still need to figure out to adjust info
+    @Rule(Fact(return_or_not=MATCH.return_or_not),
+          Fact(departure_location=MATCH.departure_location, departCRS=MATCH.departCRS),
+          Fact(arrival_location=MATCH.arrival_location, arriveCRS=MATCH.arriveCRS),
+          Fact(departure_date=MATCH.departure_date),
+          Fact(leaving_time=MATCH.leaving_time),
+          Fact(return_date=MATCH.return_date),
+          Fact(return_time=MATCH.return_time),
+          NOT(Fact(correct_booking=True | False)),
+          salience=30)
+    def ask_correct_booking(self, return_or_not, departure_location, departCRS,
+                            arrival_location, arriveCRS, departure_date, leaving_time,
+                            return_date, return_time):
+        if 'correct_booking' in self.currentInfo:
+
+            self.currentInfo['correct_booking'] = self.dictionary.get('confirmation')
+            if self.currentInfo.get('correct_booking'):  # if confirmation is correct
+                if return_or_not:  # is a return ticket
+                    cost, time_out, time_ret, url = return_fare(departCRS, arriveCRS,
+                                                                str(departure_date).replace('-', '/'),
+                                                                leaving_time.strftime("%H:%M"),
+                                                                str(return_date).replace('-', '/'),
+                                                                return_time.strftime("%H:%M"))
+                    send_message(random.choice(bot_feedback['found_return_ticket'])
+                                 + "<br>Total cost: " + str(cost)
+                                 + "<br>Time outward: " + str(time_out)
+                                 + "<br>Time return: " + str(time_ret)
+                                 + "<br>URL: " + "<a href=" + str(url)
+                                 + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
+                else:
+                    cost, time, url = single_fare(departCRS, arriveCRS,
+                                                  str(departure_date).replace('-', '/'),
+                                                  leaving_time.strftime("%H:%M"))
+                    send_message(random.choice(bot_feedback['found_single_ticket'])
+                                 + "<br>Total cost: " + str(cost)
+                                 + "<br>Time: " + str(time)
+                                 + "<br>URL: " + "<a href=" + str(url)
+                                 + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
+                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to next query
+                self.dictionary['confirmation'] = ''
+            elif not self.currentInfo.get('correct_booking'):
+                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to ask adjustment
+                self.dictionary['confirmation'] = ''
+            else:
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['no_answer']))
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
+        else:
+            self.currentInfo['correct_booking'] = ''
+            no_return = "Please confirm your booking..." \
+                        "<br>Departure datetime: " + str(departure_date) + " at " + leaving_time.strftime("%H:%M") \
+                        + "<br>Departing from: " + str(departure_location) \
+                        + "<br>Arriving at: " + str(arrival_location)
+            if return_or_not:
+                returning = no_return \
+                            + "<br>Returning datetime: " + str(return_date) \
+                            + " at " + return_time.strftime("%H:%M")
+                send_message(returning)
+            else:
+                send_message(no_return)
+
     @Rule(Fact(correct_booking=False),
           Fact(return_or_not=MATCH.return_or_not),
           salience=28)
