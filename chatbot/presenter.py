@@ -17,6 +17,7 @@ import speech_recognition as sr
 from chatbot.nlp import parse_user_input
 from flask_socketio import SocketIO, send
 
+
 __author__     = "Sam Humphreys"
 __credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
 __maintainer__ = "Sam Humphreys"
@@ -73,10 +74,12 @@ def user_connected():
 
 @socketio.on('message')
 def receive_message(user_input):
+    from model.reasoning_engine import process_user_input
     print("User message:" + user_input)
     # send to NLP
     nlp_response = parse_user_input(user_input)
     # send to RE
+    process_user_input(nlp_response)
 
 
 if __name__ == "__main__":
