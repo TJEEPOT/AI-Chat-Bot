@@ -12,6 +12,8 @@ History : 02/01/2021 - v1.0 - Complete basic implementation.
           08/01/2021 - v1.2 - Added voice recognition facility.
           20/01/2021 - v1.3 - Changed implementation to socketio
 """
+import random
+
 from flask import Flask, render_template, request, jsonify, make_response
 import speech_recognition as sr
 from chatbot.nlp import parse_user_input
@@ -68,7 +70,16 @@ def send_message(bot_response):
 @socketio.on('connect')
 def user_connected():
     # do stuff here if we want a greeting message
-    greeting_message = "Hello"          # plug in to random responses
+    bot_feedback = {
+        'greeting': [
+            "Hello!",
+            "Welcome!",
+            "Hello, how may I help you today?",
+            "Hi!",
+            "Hey!"
+        ]
+    }
+    greeting_message = random.choice(bot_feedback['greeting'])          # plug in to random responses
     send(greeting_message)
 
 

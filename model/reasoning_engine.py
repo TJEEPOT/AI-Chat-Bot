@@ -22,9 +22,9 @@ import sqlite3
 import datetime
 from experta import *
 import random
-from fuzzywuzzy import process
 from chatbot.presenter import send_message
 from model.scraper import single_fare, return_fare
+from data.process_data import user_to_query
 
 __author__ = "Steven Diep"
 __credits__ = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
@@ -32,19 +32,34 @@ __maintainer__ = "Steven Diep"
 __email__ = "steven_diep@hotmail.co.uk"
 __status__ = "Prototype"  # "Development" "Prototype" "Production"
 
+# TODO integrate dictionary bot_feedback
+
+now = datetime.datetime.now()
+current_hour_minute = datetime.time(now.hour, now.minute)
+
+all_current_info = ['intent', 'from_station', 'to_station', 'from_crs', 'to_crs', 'outward_date',
+                                'outward_time', 'return_date', 'return_time', 'confirmation_return',
+                                'correct_booking']
+
 bot_feedback = {
     'greeting': [
         "Hello!",
         "Welcome!",
         "Hello, how may I help you today?",
         "Hi!",
-        "Hey"
+        "Hey!"
     ],
     'query': [
         "I can assist you with booking tickets, provide general information regarding train services "
         "or predict the arrival of your delayed train.",
         "Please ask me about booking tickets, train delay information, or help",
         "Would you like to book a ticket, see potential delays, or do you require general help?"
+    ],
+    'ask_help': [
+        "What would you like help with?",
+        "How can I help you?",
+        "How may I help you?",
+        "Please enter your query so I can assist you."
     ],
     'ask_from_location': [
         "Where are you travelling from?",
@@ -54,13 +69,29 @@ bot_feedback = {
         "What station are you going from?",
         "What station are you travelling from?"
     ],
+    "ask_current_location": [
+        "What station are you currently at now?",
+        "Where are you currently?",
+        "What station are you delayed at?"
+    ],
     'ask_to_location': [
         "Where is your destination?",
         "Where are you travelling to?",
-        "Please tell me the station you are arriving at."
+        "Please tell me the station you are arriving at.",
         "What station are you going to?",
-        "What station are you travelling to",
+        "What station are you travelling to?",
         "Where is the station you are arriving at?"
+    ],
+    'show_wrong_station': [
+        "Please enter a valid station.",
+        "Enter a valid station.",
+        "Station not recognised, please enter again.",
+        "Try again, I do not recognise this station."
+    ],
+    'ask_time_delayed': [
+        "How long are you delayed by?",
+        "How many minutes were you delayed by?",
+        "How late is your train?"
     ],
     'ask_date': [
         "What date are you planning to leave on?",
@@ -100,23 +131,81 @@ bot_feedback = {
         "Is your booking correct?",
         "Please confirm your booking."
     ],
-
+    'past_departure_date': [
+        "Please enter a date that is current departure date or later."
+    ],
+    'past_departure_time': [
+        "Please enter a time after current departure time"
+    ],
     'no_answer': [
         "Sorry, I did not understand that.",
         "Sorry, I have no answer.",
         "I did not understand that, please ask again.",
-        "Oops, I did not get that."
+        "Oops, I did not get that.",
+        "Sorry, I did not catch that",
+        "Please respond appropriately."
     ],
     'invalid_date': [
-        "Please enter a valid date",
+        "Please enter a valid date.",
+        "The date you entered is invalid.",
+        "Your chosen date is invalid."
+    ],
+    'invalid_time': [
+        "Please enter a valid time.",
+        "The time you entered is invalid.",
+        "Your chosen date is invalid."
     ],
     'past_date': [
+        "Please enter a date that is " + str(datetime.date.today()) + " or later.",
+        "The date you entered is a date that has already passed.",
+        "Please enter " + str(datetime.date.today()) + " or later.",
+        "Please enter a date either today or beyond.",
+        "Your date should be today or later."
+    ],
+    'past_time': [
+        "Please enter a time after " + str(current_hour_minute),
+        "Enter a time after " + str(current_hour_minute),
+        "Your time must be after " + str(current_hour_minute)
+    ],
+    'ask_correct_booking': [
+        "Is this the correct booking?",
+        "Do I have the correct booking?",
+        "Is this the right booking?",
+        "Please let me know if this is correct."
+    ],
+    'found_single_ticket': [
+        "Here is your single ticket :",
+        "Here is the single ticket that we could find for you: "
+    ],
+    'found_return_ticket': [
+        "Here is your return ticket: ",
+        "Here is the return ticket that we could find for you: "
+    ],
+    'no_ticket_found': [
+        "Sorry we could not find your ticket"
+    ],
+    'show_gratitude': [
+        "Thank you for using my service!",
+        "Thank you, please use my service again",
 
     ],
-    'past_departure_date': [
+    'ask_adjustment': [
+        "What would you like to adjust?",
+        "What do you need to adjust?",
 
     ],
-
+    'next_query': [
+        "Is there anything else I can help you with?",
+        "What else can I help you with?"
+    ],
+    'passive_aggressive_feedback': [
+        "Good evening, you dense bastard. Did you get kicked in the head by a horse? "
+        "Hurry up and answer appropriately, you silly imbecile. I am giving you five seconds to respond "
+        "or else I will step out your screen to blow off your kneecaps"
+    ],
+    'reset': [
+        "Okay I will forget everything you have entered."
+    ]
 }
 
 
@@ -124,73 +213,23 @@ class Chatbot(KnowledgeEngine):
     @DefFacts()
     def initial_action(self):
         yield Fact(action="begin")
-        '''if self.dictionary.get("intent") != "":
-            self.currentInfo['intent'] = self.dictionary.get('intent')
-            yield Fact(queryType=self.dictionary.get('intent'))
-
-        if self.dictionary.get("from_crs") != "":
-            self.currentInfo['from_station'] = self.dictionary.get('from_station')
-            self.currentInfo['from_crs'] = self.dictionary.get('from_crs')
-            yield Fact(departure_location=self.dictionary.get('from_station'),
-                       departCRS=self.dictionary.get('from_crs'))
-
-        if self.dictionary.get("to_crs") != "":
-            self.currentInfo['to_station'] = self.dictionary.get('to_station')
-            self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
-            yield Fact(arrival_location=self.dictionary.get('to_station'),
-                       arriveCRS=self.dictionary.get('to_crs'))
-
-        if self.dictionary.get("outward_date") != "":
-            self.currentInfo['outward_date'] = self.dictionary.get('outward_date')
-            yield Fact(departure_date=self.dictionary.get('outward_date'))
-
-        if self.dictionary.get("outward_time") != "":
-            self.currentInfo['outward_time'] = self.dictionary.get('outward_time')
-            yield Fact(leaving_time=self.dictionary.get('outward_time'))
-
-        if self.dictionary.get("confirmation") != "":  # can only be true (yes) or false (no)
-            if self.dictionary.get("confirmation"):
-                self.currentInfo['confirmation'] = self.dictionary.get('confirmation')
-                yield Fact(return_or_not="yes")
-            else:
-                self.currentInfo['confirmation'] = self.dictionary.get('confirmation')
-                yield Fact(return_or_not="no")
-
-        if self.dictionary.get("return_date") != "" and \
-                self.dictionary.get("outward_date") <= self.dictionary.get("return_date"):
-            self.currentInfo['return_date'] = self.dictionary.get('return_date')
-            yield Fact(return_date=self.dictionary.get('return_date'))
-
-        if self.dictionary.get("return_time") != "":
-            if self.dictionary.get("outward_date") == self.dictionary.get("return_date") and \
-                    self.dictionary.get("outward_time") < self.dictionary.get("return_time"):
-                self.currentInfo['return_time'] = self.dictionary.get('return_time')
-                yield Fact(return_time=self.dictionary.get('return_time'))
-
-        if self.dictionary.get("no_category"):  # if list has is populated
-            self.currentInfo['no_category'] = self.dictionary.get('no_category')'''
-
-        print(self.currentInfo)
-
-        if 'intent' in self.currentInfo:  # when the bot receives a new input the re will check the current info what it already has
+        # when the bot receives a new input the re will check the current info it already has
+        if 'intent' in self.currentInfo:
             yield Fact(queryType=self.currentInfo.get('intent'))
 
-        if 'from_station' in self.currentInfo:  # when the bot receives a new input the re will check the current info it already has
+        if 'from_station' in self.currentInfo:
             yield Fact(departure_location=self.currentInfo.get('from_station'),
                        departCRS=self.currentInfo.get('from_crs'))
 
-        if 'to_station' in self.currentInfo:  # when the bot receives a new input the re will check the current info it already has
+        if 'to_station' in self.currentInfo:
             yield Fact(arrival_location=self.currentInfo.get('to_station'),
                        arriveCRS=self.currentInfo.get('to_crs'))
 
-        if 'outward_date' in self.currentInfo:  # when the bot receives a new input the re will check the current info it already has
+        if 'outward_date' in self.currentInfo:
             yield Fact(departure_date=self.currentInfo.get('outward_date'))
 
-        if 'outward_time' in self.currentInfo:  # when the bot receives a new input the re will check the current info it already has
+        if 'outward_time' in self.currentInfo:
             yield Fact(leaving_time=self.currentInfo.get('outward_time'))
-
-        '''if 'outward_time' in self.currentInfo:  # when the bot receives a new input the re will check the current info it already has
-            yield Fact(leaving_time=self.currentInfo.get('outward_time'))'''
 
         if 'confirmation_return' in self.currentInfo:
             yield Fact(return_or_not=self.currentInfo.get('confirmation_return'))
@@ -204,211 +243,296 @@ class Chatbot(KnowledgeEngine):
         if 'correct_booking' in self.currentInfo:
             yield Fact(correct_booking=self.currentInfo.get('correct_booking'))
 
-        '''if 'no_category' in self.currentInfo:
-            yield Fact(return_time=self.currentInfo.get('no_category'))'''
-
     @Rule(Fact(action='begin'),
           NOT(Fact(queryType=W())),
-          salience=50
-          )
+          salience=50)
     def ask_query_type(self):
-        print(engine.dictionary)
         if 'intent' in self.dictionary and self.dictionary.get('intent') != '':
             self.currentInfo['intent'] = self.dictionary.get('intent')
             self.declare(Fact(queryType=self.dictionary.get('intent')))
-            print(self.currentInfo)
         else:
-            send_message("Hello, how may I help you today? \nI can assist you with booking tickets, "
-                         "provide general information regarding train services or predict the arrival "
-                         "of your delayed train.")  # sees this in the ui.
-        '''for k, v in self.dictionary.items():  # dictionary coming in
-            if k == 'intent':
-                self.declare(Fact(queryType=v))
-                break
+            if self.dictionary.get('includes_greeting'):
+                send_message(random.choice(bot_feedback['greeting']))
             else:
-                print("")  # TODO error message goes here'''
+                if self.dictionary.get('intent') != '':
+                    send_message(random.choice(bot_feedback['query']))
+                else:
+                    send_message(random.choice(bot_feedback['no_answer']))
 
-    @Rule(Fact(queryType='help'),
-          salience=48
-          )
+    @Rule(Fact(queryType=L('help') | L('cancel') | L('change')),
+          salience=48)
     def ask_help_type(self):
-        send_message("What would you like help with?")
-        for k, v in self.dictionary.items():  # dictionary coming in
-            if k == 'intent':
-                self.declare(Fact(queryType=v))
-                break
+        if 'intent' in self.dictionary and self.dictionary.get('intent') in ['ticket', 'cancel', 'change']:
+            if self.dictionary.get('intent') == 'ticket':
+                send_message('Basic directions on using this bot: You are probably here because you are unsure '
+                             'how to use the bot. For ticket booking, the bot requires you to let it '
+                             'know you would like to make a booking, i.e. "I would like to book a ticket".'
+                             'The bot then require you to enter location of departure and arrival, departure datetime, '
+                             'whether you are returning, and if you are returning, the return datetime. The bot would '
+                             'then repeat the information you have given and provide you with a link to your '
+                             'ticket<br><br>'
+                             'Purpose of this bot: This bot was designed to answer user queries about train delays, '
+                             'provide some form of extra assistance regarding ticket information (where you are now), '
+                             'and most of all provides the cheapest train ticket through user input')
+            elif self.dictionary.get('intent') == 'cancel':
+                send_message("For more information on cancelling your ticket please visit: "
+                             "<a href=https://www.greateranglia.co.uk/contact-us/faqs/refunds>Link</a> ")
+            elif self.dictionary.get('intent') == 'change':
+                send_message("If you would like to make adjustments to your ticket please use the link provided: "
+                             "<a href=https://www.greateranglia.co.uk/contact-us/faqs/tickets>Link</a>")
+        elif self.dictionary.get('reset'):
+            send_message(random.choice(bot_feedback['reset']))
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
+        else:
+            if self.dictionary.get('intent') == 'help':
+                send_message(random.choice(bot_feedback['ask_help']))
             else:
-                print("")  # TODO error message goes here
+                send_message(random.choice(bot_feedback['no_answer']))
 
     @Rule(Fact(queryType=L('ticket') | L('delay')),
           NOT(Fact(departure_location=W())),
-          salience=46
-          )
+          salience=46)
     def ask_departure_station(self):
-        if 'from_station' in self.dictionary and self.dictionary.get(
-                'from_station') != '':  # if from station is in dictionary
+        if 'from_station' in self.dictionary and self.dictionary.get('from_station') != '':
             self.currentInfo['from_station'] = self.dictionary.get('from_station')
+            self.currentInfo['from_crs'] = self.dictionary.get('from_crs')
             self.declare(Fact(departure_location=self.dictionary.get('from_station')))
-        elif 'from_station' not in self.currentInfo and self.dictionary.get('no_category'):
-            self.currentInfo['from_station'] = self.dictionary.get('no_category')[0]
+        elif 'from_station' not in self.currentInfo and self.dictionary.get('no_category') and \
+                isinstance(self.dictionary.get('no_category')[0], str):
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
                       {'location': self.dictionary.get('no_category')[0]})
             crs = c.fetchone()
-            self.currentInfo['from_crs'] = crs[0]
-            self.declare(Fact(departure_location=self.dictionary.get('no_category')[0], departCRS=crs[0]))
+            if crs is not None:
+                self.currentInfo['from_station'] = self.dictionary.get('no_category')[0]
+                self.currentInfo['from_crs'] = crs[0]
+                self.declare(Fact(departure_location=self.dictionary.get('no_category')[0], departCRS=crs[0]))
+            else:
+                send_message(random.choice(bot_feedback['show_wrong_station']))
+        elif self.dictionary.get('suggestion'):
+            for station_or_location in range(len(self.dictionary.get('suggestion'))):
+                if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
+                        self.dictionary.get('from_station') != \
+                        self.dictionary.get('suggestion')[station_or_location]['station'] \
+                        and self.dictionary.get('to_station') != \
+                        self.dictionary.get('suggestion')[station_or_location]['station']:
+                    send_message("Did you mean " + self.dictionary['suggestion'][station_or_location]['station'] + "?")
+                    break
+                elif 'location' in self.dictionary.get('suggestion')[station_or_location]:
+                    conn = sqlite3.connect(r'..\data\db.sqlite')
+                    c = conn.cursor()
+                    c.execute("SELECT name FROM stations WHERE county=:location ORDER BY served_2019 DESC",
+                              {'location': self.dictionary['suggestion'][station_or_location]['location']})
+                    top_5_stations = c.fetchmany(5)
+                    string = ""
+                    count = 0
+                    for list_all in top_5_stations:
+                        string += str(list_all[0])
+                        count += 1
+                        if count < len(top_5_stations):
+                            string += ", "
+                    send_message("The station you would like to depart from share similar names with the location you "
+                                 "entered, here is a list a of possible stations you may be referring to: " + string)
+                    break
+        elif self.dictionary.get('reset'):
+            send_message(random.choice(bot_feedback['reset']))
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
-            send_message("Where are you departing from?")
-            print("already got user input coming in, think of a way to handle that")
-            '''if self.currentInfo'''
+            if self.dictionary.get('intent') == 'ticket':  # or self.dictionary.get('no_category')
+                send_message(random.choice(bot_feedback['ask_from_location']))
+            elif self.dictionary.get('intent') == 'delay':
+                send_message(random.choice(bot_feedback['ask_current_location']))
+            else:
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['no_answer']))
 
-        '''for k, v in self.dictionary.items():  # dictionary coming in
-            if k == 'from_station' and v != '':
-                self.declare(Fact(departure_location=v))
-            elif k == 'from_crs' and v != '':
-                self.declare(Fact(departCRS=v))
-                break
-            elif k == 'no_category' and v != '':
-                conn = sqlite3.connect(r'..\data\db.sqlite')
-                c = conn.cursor()
-                c.execute("SELECT crs FROM stations WHERE name=:location", {'location': v[0]})
-                crs = c.fetchone()
-                if crs is None:  # if the user enters the wrong station
-                    print("Please enter a valid station.")
-                else:
-                    self.declare(Fact(departure_location=v[0], departCRS=crs))
-                break'''
-
-    @Rule(Fact(departure_location=W()),
+    @Rule(Fact(queryType=L('ticket') | L('delay')),
+          Fact(departure_location=W()),
           NOT(Fact(arrival_location=W())),
-          salience=44
-          )
+          salience=44)
     def ask_arrival_station(self):
-        if 'to_station' in self.dictionary and self.dictionary.get(
-                'to_station') != '':  # if from station is in dictionary
+        if 'to_station' in self.dictionary and self.dictionary.get('to_station') != '':
             self.currentInfo['to_station'] = self.dictionary.get('to_station')
+            self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
             self.declare(Fact(arrival_location=self.dictionary.get('to_station')))
-            print(engine.facts)
         elif 'to_station' not in self.currentInfo and self.dictionary.get('no_category') and \
-                self.dictionary.get('no_category')[0] != self.currentInfo.get(
-                'from_station'):  # 'no_category' in self.dictionary and self.dictionary.get('no_category') and self.currentInfo.get('from_station')
-            print(self.dictionary.get('no_category'))
-            self.currentInfo['to_station'] = self.dictionary.get('no_category')[0]
+                self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station') and \
+                isinstance(self.dictionary.get('no_category')[0], str):
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
                       {'location': self.dictionary.get('no_category')[0]})
             crs = c.fetchone()
-            self.currentInfo['to_crs'] = crs[0]
-            self.declare(Fact(arrival_location=self.dictionary.get('no_category')[0], arriveCRS=crs[0]))
+            if crs is not None:
+                self.currentInfo['to_station'] = self.dictionary.get('no_category')[0]
+                self.currentInfo['to_crs'] = crs[0]
+                self.declare(Fact(arrival_location=self.dictionary.get('no_category')[0], arriveCRS=crs[0]))
+            else:
+                send_message(random.choice(bot_feedback['show_wrong_station']))
+        elif self.dictionary.get('suggestion'):
+            for station_or_location in range(len(self.dictionary.get('suggestion'))):
+                if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
+                        self.dictionary.get('from_station') != \
+                        self.dictionary.get('suggestion')[station_or_location]['station'] \
+                        and self.dictionary.get('to_station') != \
+                        self.dictionary.get('suggestion')[station_or_location]['station']:
+                    send_message("Did you mean " + self.dictionary['suggestion'][station_or_location]['station'] + "?")
+                    break
+                elif 'location' in self.dictionary.get('suggestion')[station_or_location]:
+                    conn = sqlite3.connect(r'..\data\db.sqlite')
+                    c = conn.cursor()
+                    c.execute("SELECT name FROM stations WHERE county=:location ORDER BY served_2019 DESC",
+                              {'location': self.dictionary['suggestion'][station_or_location]['location']})
+                    top_5_stations = c.fetchmany(5)
+                    string = ""
+                    count = 0
+                    for list_all in top_5_stations:
+                        string += str(list_all[0])
+                        count += 1
+                        if count < len(top_5_stations):
+                            string += ", "
+                    send_message("The station you would like to arrive at share similar names with the location you "
+                                 "entered, here is a list a of possible stations you may be referring to: " + string)
+                    break
+        elif self.dictionary.get('reset'):
+            send_message(random.choice(bot_feedback['reset']))
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
-            print(self.dictionary.get('no_category'))
-            print(self.currentInfo.get('from_station'))
-            send_message("Where is your destination?")
+            if self.dictionary.get('from_station') != '' or self.dictionary.get('no_category'):
+                send_message(random.choice(bot_feedback['ask_to_location']))
+            else:
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['no_answer']))
 
-        '''for k, v in self.dictionary.items():  # dictionary coming in
-            if k == 'to_station' and v != '':
-                self.declare(Fact(arrival_location=v))
-            elif k == 'to_crs' and v != '':
-                self.declare(Fact(arriveCRS=v))
-                break
-            elif k == 'no_category':
-                conn = sqlite3.connect(r'..\data\db.sqlite')
-                c = conn.cursor()
-                c.execute("SELECT crs FROM stations WHERE name=:location", {'location': v[0]})
-                crs = c.fetchone()
-                if crs is None:  # if the user enters the wrong station
-                    print("Please enter a valid station.")
-                else:
-                    self.declare(Fact(arrival_location=v[0], arriveCRS=crs))
-                break'''
-
+    # TODO wait on martin tomorrow to fix the problem
     @Rule(Fact(departure_location=MATCH.departure_location),
           Fact(arrival_location=MATCH.arrival_location),
           Fact(queryType='delay'),
-          salience=42
-          )
+          salience=42)
     def ask_time_delayed(self, departure_location, arrival_location):
-        send_message("How long were you delayed by?")
-        for k, v in self.dictionary.items():  # dictionary coming in
-            if k == 'raw_message' and v != '':
-                delayTime = v.split()
-                for minutes in delayTime:
-                    if minutes.isdigit():
-                        print("time delayed:", minutes)
-                        print("departure location:", departure_location)
-                        print("arrival_location:", arrival_location)
-                        # TODO use prediction model here
-                        # self.declare(Fact(delay_time=delayedTime))  may need to declare delay time fact?
-                        # prediction_model(departure_location, arrival_location, delayedTime)
-                        print(engine.facts)  # TODO reset conversation, remove print statement later
-                        break
+        if 'raw_message' in self.dictionary and self.dictionary.get('raw_message') != '' and \
+                not self.dictionary.get('no_category'):
+            stations = [departure_location, arrival_location]
+            tpl_stations = []
+            conn = sqlite3.connect(r'..\data\db.sqlite')
+            c = conn.cursor()
+            for find_tpl in stations:
+                c.execute("SELECT tpl FROM stations WHERE name=:location", {'location': find_tpl})
+                tpl = c.fetchone()
+                tpl_stations.append(tpl[0])
+            delay_time = self.dictionary.get('raw_message').split()
+            for minutes in delay_time:
+                if minutes.isdigit():
+                    print(tpl_stations[0])
+                    print(int(minutes))
+                    print(user_to_query(tpl_stations[0], tpl_stations[1], int(minutes)))
+                    send_message("Departure location: " + departure_location + "<br>"
+                                    "Arrival location: " + arrival_location + "<br>"
+                                    "Minutes you were delayed by: " + minutes + "<br>"
+                                    "Minutes you will be delayed till your final destination: ")
+        elif self.dictionary.get('reset'):
+            send_message(random.choice(bot_feedback['reset']))
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
+        else:
+            if self.dictionary.get('to_station') != '' or self.dictionary.get('no_category'):
+                send_message(random.choice(bot_feedback['ask_time_delayed']))  # TODO reset here
             else:
-                print("I didnt get that")
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['no_answer']))
 
     @Rule(Fact(arrival_location=W()),
           Fact(queryType=L('ticket')),
           NOT(Fact(departure_date=W())),
-          salience=40
-          )
+          salience=40)
     def ask_depart_date(self):
-        if 'outward_date' in self.dictionary and self.dictionary.get('outward_date') != '':  # TODO with input tomorrow
-            self.currentInfo['outward_date'] = self.dictionary.get('outward_date')
-            self.declare(Fact(departure_date=self.dictionary.get('outward_date')))
+        if 'outward_date' in self.dictionary and self.dictionary.get('outward_date') != '':
+            if datetime.date.today() <= self.dictionary.get('outward_date'):
+                self.currentInfo['outward_date'] = self.dictionary.get('outward_date')
+                self.declare(Fact(departure_date=self.dictionary.get('outward_date')))
+            else:
+                send_message(random.choice(bot_feedback['past_date']))
         elif 'outward_date' not in self.currentInfo and self.dictionary.get('no_category') and \
-                self.dictionary.get('no_category')[0] != self.currentInfo.get('to_station'):
-            print(self.dictionary.get('no_category'))
-            self.currentInfo['outward_date'] = self.dictionary.get('no_category')[0]
-            print(self.currentInfo.get('outward_date'))
-            self.declare(Fact(departure_date=self.dictionary.get('no_category')[0]))
+                self.dictionary.get('no_category')[0] != self.currentInfo.get('to_station') and \
+                isinstance(self.dictionary.get('no_category')[0], datetime.date):
+            if datetime.date.today() <= self.dictionary.get('no_category')[0]:
+                self.currentInfo['outward_date'] = self.dictionary.get('no_category')[0]
+                self.declare(Fact(departure_date=self.dictionary.get('no_category')[0]))
+            else:
+                send_message(random.choice(bot_feedback['past_date']))
+        elif self.dictionary.get('reset'):
+            send_message(random.choice(bot_feedback['reset']))
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
-            print(self.dictionary)
-            send_message("What date are you leaving?")
-        '''for k, v in self.dictionary.items():  # dictionary coming in
-            if k == 'outward_date' and v != '':
-                if datetime.date.today() > v:
-                    print(
-                        "Please enter a date that is %s or later." % datetime.date.today())  # TODO notify user they have to enter a date later than today or today
-                else:
-                    self.declare(Fact(departure_date=v))
-                break
-            elif k == 'no_category' and v:
-                self.declare(Fact(departure_date=v[0]))
-                break'''
+            if 'from_station' in self.currentInfo and (
+                    self.dictionary.get('to_from') != '' or self.dictionary.get('no_category')):
+                send_message(random.choice(bot_feedback['ask_date']))
+            elif 'from_station' not in self.currentInfo:
+                pass
+            else:
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['invalid_date']))
 
     @Rule(Fact(departure_date=MATCH.departure_date),
           NOT(Fact(leaving_time=W())),
-          salience=38
-          )
+          salience=38)
     def ask_depart_time(self, departure_date):
         if 'outward_time' in self.dictionary and self.dictionary.get('outward_time') != '':
-            self.currentInfo['outward_time'] = self.dictionary.get('outward_time')
-            self.declare(Fact(leaving_time=self.dictionary.get('outward_time')))
+            if datetime.date.today() == departure_date and self.dictionary.get('outward_time') < current_hour_minute:
+                send_message(random.choice(bot_feedback['past_time']))
+            else:
+                self.currentInfo['outward_time'] = self.dictionary.get('outward_time')
+                self.declare(Fact(leaving_time=self.dictionary.get('outward_time')))
         elif 'outward_time' not in self.currentInfo and self.dictionary.get('no_category') and \
                 self.dictionary.get('no_category')[0] != self.currentInfo.get('outward_date'):
-            self.currentInfo['outward_time'] = self.dictionary.get('no_category')[1]
-            self.declare(Fact(leaving_time=self.dictionary.get('no_category')[1]))
-        else:
-            send_message("What time are you leaving?")  # read as 24hr clock
-        '''for k, v in self.dictionary.items():  # dictionary coming in
-            if k == 'outward_time' and v != '':
-                now = datetime.datetime.now()
-                current_hour_minute = datetime.time(now.hour, now.minute)
-                if datetime.date.today() == departure_date and v < current_hour_minute:  # if booking is on same day, check if time entered is past current time
-                    print(
-                        "Please enter a time after %s" % current_hour_minute)  # TODO notify user they have to enter a time after current time
-                else:
-                    self.declare(Fact(leaving_time=v))
+            if datetime.date.today() == departure_date and self.dictionary.get('no_category')[0] < current_hour_minute:
+                send_message(random.choice(bot_feedback['past_time']))
+            else:
+                self.currentInfo['outward_time'] = self.dictionary.get('no_category')[0]
+                self.declare(Fact(leaving_time=self.dictionary.get('no_category')[0]))
+        elif self.dictionary.get('reset'):
+            send_message(random.choice(bot_feedback['reset']))
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
                     break
-            elif v == 'no_category':
-                self.declare(Fact(leaving_time=v[1]))
-                break'''
+        else:
+            if self.dictionary.get('outward_date') != '' or self.dictionary.get('no_category'):
+                send_message(random.choice(bot_feedback['ask_time']))
+            else:
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['invalid_time']))
 
     @Rule(Fact(leaving_time=W()),
           NOT(Fact(return_or_not=W())),
-          salience=36
-          )
+          salience=36)
     def ask_return(self):
         if 'confirmation' in self.dictionary and self.dictionary.get('confirmation') != '':
             self.currentInfo['confirmation_return'] = self.dictionary.get('confirmation')
@@ -418,86 +542,90 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
                 self.declare(Fact(return_date=' '))
                 self.declare(Fact(return_time=' '))
-                self.dictionary['confirmation'] = ''
             else:
                 self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
-        else:
-            send_message("Are you planning to return?")
-
-        '''for k, v in self.dictionary.items():  # dictionary coming in
-            if k == "confirmation" and v != '':
-                if v:
-                    self.declare(Fact(return_or_not="yes"))
+        elif self.dictionary.get('reset'):
+            send_message(random.choice(bot_feedback['reset']))
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
                     break
-                elif not v:
-                    self.declare(Fact(return_or_not="no"))
-                    self.declare(Fact(return_date=' '))
-                    self.declare(Fact(return_time=' '))
-                    break'''
-
-    '''@Rule(Fact(return_date=MATCH.return_date), Fact(return_or_not='yes'))
-    def missing(self, return_date):
-        if return_date == '':
-            print('what date would you like to return?')'''
+        else:
+            if self.dictionary.get('outward_time') != '' or self.dictionary.get('no_category'):
+                send_message(random.choice(bot_feedback['ask_return']))
+            else:
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['no_answer']))
 
     @Rule(Fact(return_or_not=True),
           Fact(departure_date=MATCH.departure_date),
           NOT(Fact(return_date=W())),
-          salience=34
-          )
+          salience=34)
     def ask_return_date(self, departure_date):
         if 'return_date' in self.dictionary and self.dictionary.get('return_date') != '':
-            self.currentInfo['return_date'] = self.dictionary.get('return_date')
-            self.declare(Fact(return_date=self.dictionary.get('return_date')))
+            if departure_date <= self.dictionary.get('return_date'):
+                self.currentInfo['return_date'] = self.dictionary.get('return_date')
+                self.declare(Fact(return_date=self.dictionary.get('return_date')))
+            else:
+                send_message(random.choice(bot_feedback['past_departure_date']))
         elif 'return_date' not in self.currentInfo and self.dictionary.get('no_category'):
-            self.currentInfo['return_date'] = self.dictionary.get('no_category')[0]
-            self.declare(Fact(return_date=self.dictionary.get('no_category')[0]))
+            if departure_date <= self.dictionary.get('no_category')[0]:
+                self.currentInfo['return_date'] = self.dictionary.get('no_category')[0]
+                self.declare(Fact(return_date=self.dictionary.get('no_category')[0]))
+            else:
+                send_message(random.choice(bot_feedback['past_departure_date']))
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
-            send_message("What date are you returning?")  # send message
-        '''for k, v in self.dictionary.items():  # dictionary coming in
-            if k in ['return_date', 'no_category'] and (v != '' or v):
-                if isinstance(v, list):
-                    if departure_date <= v[0]:
-                        self.declare(Fact(return_date=v[0]))
-                        break
-                elif isinstance(v, datetime.date):
-                    if departure_date <= v:
-                        self.declare(Fact(return_date=v))
-                        break
-                else:
-                    print("Please enter a date that is %s or later." % departure_date)'''
+            if self.dictionary.get('confirmation') != '':
+                send_message(random.choice(bot_feedback['ask_return_date']))
+            else:
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['invalid_date']))
 
     @Rule(Fact(return_date=MATCH.return_date),
           Fact(departure_date=MATCH.departure_date),
           Fact(leaving_time=MATCH.leaving_time),
           NOT(Fact(return_time=W())),
-          salience=32
-          )
+          salience=32)
     def ask_return_time(self, return_date, departure_date, leaving_time):
         if 'return_time' in self.dictionary and self.dictionary.get('return_time') != '':
-            self.currentInfo['return_time'] = self.dictionary.get('return_time')
-            self.declare(Fact(return_time=self.dictionary.get('return_time')))
+            if departure_date == return_date and self.dictionary.get('return_time') < leaving_time:
+                send_message(random.choice(bot_feedback['past_departure_time']))
+            else:
+                self.currentInfo['return_time'] = self.dictionary.get('return_time')
+                self.declare(Fact(return_time=self.dictionary.get('return_time')))
         elif 'return_time' not in self.currentInfo and self.dictionary.get('no_category') and \
                 self.dictionary.get('no_category')[0] != self.currentInfo.get('return_date'):
-            self.currentInfo['return_time'] = self.dictionary.get('no_category')[1]
-            self.declare(Fact(return_time=self.dictionary.get('no_category')[1]))
+            if departure_date == return_date and self.dictionary.get('no_category')[0] < leaving_time:
+                send_message(random.choice(bot_feedback['past_departure_time']))
+            else:
+                self.currentInfo['return_time'] = self.dictionary.get('no_category')[0]
+                self.declare(Fact(return_time=self.dictionary.get('no_category')[0]))
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
-            send_message("What time would you like to return?")
-        '''for k, v in self.dictionary.items():  # dictionary coming in
-            if k in ['return_time', 'no_category'] and (v != '' or v):
-                if isinstance(v, list):
-                    if departure_date != return_date and v[1] > leaving_time:  # if booking is on same day, check if time entered is past current time
-                        self.declare(
-                            Fact(return_time=v[1]))  # TODO notify user they have to enter a time after current time
-                        break
-                elif isinstance(v, datetime.time):
-                    if departure_date != return_date and v > leaving_time:
-                        self.declare(Fact(return_time=v))
-                        break
-                else:
-                    print("Please enter a time after %s" % leaving_time)'''
+            if self.dictionary.get('return_date') != '' or self.dictionary.get('no_category'):
+                send_message(random.choice(bot_feedback['ask_return_time']))
+            else:
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['invalid_time']))
 
-    @Rule(Fact(return_or_not=MATCH.return_or_not),
+    '''@Rule(Fact(return_or_not=MATCH.return_or_not),
           Fact(departure_location=MATCH.departure_location, departCRS=MATCH.departCRS),
           Fact(arrival_location=MATCH.arrival_location, arriveCRS=MATCH.arriveCRS),
           Fact(departure_date=MATCH.departure_date),
@@ -505,8 +633,7 @@ class Chatbot(KnowledgeEngine):
           Fact(return_date=MATCH.return_date),
           Fact(return_time=MATCH.return_time),
           NOT(Fact(correct_booking=W())),
-          salience=30
-          )
+          salience=30)
     def ask_correct_booking(self, return_or_not, departure_location, departCRS,
                             arrival_location, arriveCRS, departure_date, leaving_time,
                             return_date, return_time):
@@ -519,25 +646,108 @@ class Chatbot(KnowledgeEngine):
                                                                 leaving_time.strftime("%H:%M"),
                                                                 str(return_date).replace('-', '/'),
                                                                 return_time.strftime("%H:%M"))
-                    send_message("Here is the return ticket that we could find for you: "
+                    send_message(random.choice(bot_feedback['found_return_ticket'])
                                  + "<br>Total cost: " + str(cost)
                                  + "<br>Time outward: " + str(time_out)
                                  + "<br>Time return: " + str(time_ret)
-                                 + "<br>URL: " + "<a href="+str(url)+">Link to ticket</a>")  # TODO if theres no ticket? maybe list multiple tickets in a 30 min range
+                                 + "<br>URL: " + "<a href=" + str(url) + "target=_blank rel = noopener noreferrer >Link to ticket</a>")
                 else:
                     cost, time, url = single_fare(departCRS, arriveCRS,
                                                   str(departure_date).replace('-', '/'),
                                                   leaving_time.strftime("%H:%M"))
-                    send_message("Here is the single ticket that we could find for you: "
+                    send_message(random.choice(bot_feedback['found_single_ticket'])
                                  + "<br>Total cost: " + str(cost)
                                  + "<br>Time: " + str(time)
-                                 + "<br>URL: " + "<a href="+str(url)+">Link to ticket</a>")
+                                 + "<br>URL: " + "<a href=" + str(url) + ">Link to ticket</a>")
+                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to next query
+                self.dictionary['confirmation'] = ''
             else:
-                print("noooooooooooooooooooooo")
-                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))
+                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to ask adjustment
+                self.dictionary['confirmation'] = ''
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
-            no_return = "Please confirm your booking...<br>Departure datetime: " + str(departure_date) + " at " \
-                        + leaving_time.strftime("%H:%M") + "<br>Departing from: " + str(departure_location) \
+            if self.dictionary.get('return_time') != '' or self.dictionary.get('confirmation') != '' or \
+                    self.dictionary.get('no_category'):
+                no_return = "Please confirm your booking..." \
+                            "<br>Departure datetime: " + str(departure_date) + " at " + leaving_time.strftime("%H:%M") \
+                            + "<br>Departing from: " + str(departure_location) \
+                            + "<br>Arriving at: " + str(arrival_location)
+                if return_or_not:
+                    returning = no_return \
+                                + "<br>Returning datetime: " + str(return_date) \
+                                + " at " + return_time.strftime("%H:%M")
+                    send_message(returning)
+                else:
+                    send_message(no_return)
+            else:
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['no_answer']))'''
+
+    @Rule(Fact(return_or_not=MATCH.return_or_not),
+          Fact(departure_location=MATCH.departure_location, departCRS=MATCH.departCRS),
+          Fact(arrival_location=MATCH.arrival_location, arriveCRS=MATCH.arriveCRS),
+          Fact(departure_date=MATCH.departure_date),
+          Fact(leaving_time=MATCH.leaving_time),
+          Fact(return_date=MATCH.return_date),
+          Fact(return_time=MATCH.return_time),
+          NOT(Fact(correct_booking=True | False)),
+          salience=30)
+    def ask_correct_booking(self, return_or_not, departure_location, departCRS,
+                            arrival_location, arriveCRS, departure_date, leaving_time,
+                            return_date, return_time):
+        if 'correct_booking' in self.currentInfo:
+
+            self.currentInfo['correct_booking'] = self.dictionary.get('confirmation')
+            if self.currentInfo.get('correct_booking'):  # if confirmation is correct
+                if return_or_not:  # is a return ticket
+                    cost, time_out, time_ret, url = return_fare(departCRS, arriveCRS,
+                                                                str(departure_date).replace('-', '/'),
+                                                                leaving_time.strftime("%H:%M"),
+                                                                str(return_date).replace('-', '/'),
+                                                                return_time.strftime("%H:%M"))
+                    send_message(random.choice(bot_feedback['found_return_ticket'])
+                                 + "<br>Total cost: " + str(cost)
+                                 + "<br>Time outward: " + str(time_out)
+                                 + "<br>Time return: " + str(time_ret)
+                                 + "<br>URL: " + "<a href=" + str(url)
+                                 + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
+                else:
+                    cost, time, url = single_fare(departCRS, arriveCRS,
+                                                  str(departure_date).replace('-', '/'),
+                                                  leaving_time.strftime("%H:%M"))
+                    send_message(random.choice(bot_feedback['found_single_ticket'])
+                                 + "<br>Total cost: " + str(cost)
+                                 + "<br>Time: " + str(time)
+                                 + "<br>URL: " + "<a href=" + str(url)
+                                 + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
+                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to next query
+                self.dictionary['confirmation'] = ''
+            elif not self.currentInfo.get('correct_booking'):
+                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to ask adjustment
+                self.dictionary['confirmation'] = ''
+            else:
+                self.dictionary.get('raw_message')
+                send_message(random.choice(bot_feedback['no_answer']))
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
+        else:
+            self.currentInfo['correct_booking'] = ''
+            no_return = "Please confirm your booking..." \
+                        "<br>Departure datetime: " + str(departure_date) + " at " + leaving_time.strftime("%H:%M") \
+                        + "<br>Departing from: " + str(departure_location) \
                         + "<br>Arriving at: " + str(arrival_location)
             if return_or_not:
                 returning = no_return \
@@ -547,61 +757,102 @@ class Chatbot(KnowledgeEngine):
             else:
                 send_message(no_return)
 
-        '''send_message("Please confirm your booking..."
-                     "\nDeparture datetime: ", departure_date, "at", leaving_time,
-                     "\nDeparting from: ", departure_location,
-                     "\nArriving at: ", arrival_location)
-        if return_or_not:
-            send_message("Returning datetime: ", return_date, "at", return_time)
-        print("Is this correct?")
-        for k, v in self.dictionary.items():
-            if k == "confirmation" and v != '':
-                if v:
-                    print("CRS CODES BELONG HERE, DEPARTURE CRS:", departCRS, "ARRIVAL CRS:", arriveCRS)
-
-                    print("SCRAPING...")
-                    self.declare(Fact(correct_booking='yes'))
-                elif not v:
-                    self.declare(Fact(correct_booking='no'))
-                else:
-                    print("Sorry, I did not understand that.")'''
-
     @Rule(Fact(correct_booking=False),
-          salience=28
-          )
-    def ask_adjustment(self):
-        print("What would you like to adjust?")
-        ticketInfo = input()
-        if ticketInfo == 'station':  # redo station location
-            print(engine.facts)  # TODO use reset engine
+          Fact(return_or_not=MATCH.return_or_not),
+          salience=28)
+    def ask_adjustment(self, return_or_not):
+        if self.dictionary.get('raw_message') == '1':
+            del self.currentInfo['from_station']
+        elif self.dictionary.get('raw_message') == '2':
+            del self.currentInfo['to_station']
+        elif self.dictionary.get('raw_message') == '3':
+            del self.currentInfo['outward_date']
+        elif self.dictionary.get('raw_message') == '4':
+            del self.currentInfo['outward_time']
+        elif self.dictionary.get('raw_message') == '5':
+            del self.currentInfo['confirmation_return']
+            del self.currentInfo['return_date']
+            del self.currentInfo['return_time']
+        elif self.dictionary.get('raw_message') == '6':
+            del self.currentInfo['return_date']
+        elif self.dictionary.get('raw_message') == '7':
+            del self.currentInfo['return_time']
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
             engine.reset()
-
-        elif ticketInfo == 'return':
-            pass
-        elif ticketInfo == 'date':
-            pass
-        elif ticketInfo == 'time':
-            pass
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
         else:
-            print("Sorry, I did not understand that.")
-
-    '''@Rule(Fact(correct_booking='yes'))
-    def end_query(self):
-        print("Is there anything else I can help you with?")
-        print("What else can I help you with?")
-        engine.reset()
-        print(engine.facts)
-        for k, v in self.currentInfo.items():
-            if k == "confirmation" and v != '':
-                if ans in ['ticket', 'delay', 'help']:
-                    engine.reset()
-                    engine.declare(Fact(queryType=ans))
-                    engine.run()
-                elif not v:
-                    engine.reset()  # decided to have the engine to be reset. not sure what else to do
-                    engine.run()
+            if self.dictionary.get('confirmation') != '':
+                no_return = "To adjust your ticket information enter the following number:" \
+                             "1 - Departure location" \
+                             "2 - Arrival location" \
+                             "3 - Departure date" \
+                             "4 - Departure time" \
+                             "5 - Change to single/return"
+                if return_or_not:
+                    returning = no_return + \
+                                "6 - Return date" \
+                                "7 - Return time"
+                    send_message(returning)          #random.choice(bot_feedback['ask_adjustment'])
                 else:
-                    print("Sorry, I did not understand that.")'''
+                    send_message(no_return)
+            else:
+                send_message(random.choice(bot_feedback['no_answer']))
+
+    @Rule(Fact(correct_booking=True),
+          salience=26)
+    def next_query(self):
+        if 'confirmation' in self.dictionary and \
+                (self.dictionary.get('confirmation') != '' or self.dictionary.get('intent') != ''):
+            if self.dictionary.get('confirmation'):
+                send_message(random.choice(bot_feedback['next_query']))
+            elif not self.dictionary.get('confirmation'):
+                for key in all_current_info:
+                    if key in self.currentInfo:
+                        del self.currentInfo[key]
+                send_message(random.choice(bot_feedback['show_gratitude']))
+                engine.reset()
+            elif self.dictionary.get('intent') == 'ticket':
+                all_current_info.pop(0)
+                for key in all_current_info:
+                    if key in self.currentInfo:
+                        del self.currentInfo[key]
+                engine.reset()
+            elif self.dictionary.get('intent') == 'help':
+                for key in all_current_info:
+                    if key in self.currentInfo:
+                        del self.currentInfo[key]
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                engine.reset()
+            elif self.dictionary.get('intent') == 'cancellation':
+                for key in all_current_info:
+                    if key in self.currentInfo:
+                        del self.currentInfo[key]
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                engine.reset()
+            elif self.dictionary.get('intent') == 'change':
+                for key in all_current_info:
+                    if key in self.currentInfo:
+                        del self.currentInfo[key]
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                engine.reset()
+        elif self.dictionary.get('reset'):
+            send_message("Okay I will forget everything you have entered.")
+            engine.reset()
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+                elif self.currentInfo == {}:
+                    break
+        else:
+            if self.dictionary.get('confirmation') == '':
+                send_message(random.choice(bot_feedback['next_query']))
+            else:
+                send_message(random.choice(bot_feedback['no_answer']))
 
 
 engine = Chatbot()
