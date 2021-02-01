@@ -1,5 +1,5 @@
 import unittest
-from context import re
+from tests.context import re
 
 
 class TestReasoningEngine(unittest.TestCase):

@@ -19,13 +19,11 @@ import speech_recognition as sr
 from chatbot.nlp import parse_user_input
 from flask_socketio import SocketIO, send
 
-
-__author__     = "Sam Humphreys"
-__credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
+__author__ = "Sam Humphreys"
+__credits__ = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
 __maintainer__ = "Sam Humphreys"
-__email__      = "s.humphreys@uea.ac.uk"
-__status__     = "Development"  # "Development" "Prototype" "Production"
-
+__email__ = "s.humphreys@uea.ac.uk"
+__status__ = "Development"  # "Development" "Prototype" "Production"
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "iamasecretkey"  # I'll pretend I didn't see this.
@@ -72,14 +70,15 @@ def user_connected():
     # do stuff here if we want a greeting message
     bot_feedback = {
         'greeting': [
-            "Hello!",
-            "Welcome!",
+            "Hello! How may I help you today?",
+            "Welcome! Please ask me about tickets, help, or delays.",
             "Hello, how may I help you today?",
-            "Hi!",
-            "Hey!"
+            "Hi! Please ask me about tickets, help, or delays.",
+            "Hey! I currently offer assistance in booking tickets, "
+            "providing help information, or estimate your train delay."
         ]
     }
-    greeting_message = random.choice(bot_feedback['greeting'])          # plug in to random responses
+    greeting_message = random.choice(bot_feedback['greeting'])  # plug in to random responses
     send(greeting_message)
 
 
