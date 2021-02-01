@@ -188,9 +188,9 @@ bot_feedback = {
         "Sorry we could not find your ticket"
     ],
     'show_gratitude': [
-        "Thank you for using my service!",
-        "Thank you, please use my service again",
-
+        "Thank you for using my service! If you need anything else, you can enter another query just like before.",
+        "Thank you, please use my service again. "
+        "If you need something similar, you can enter another query just like before.",
     ],
     'ask_adjustment': [
         "What would you like to adjust?",
@@ -809,7 +809,6 @@ class Chatbot(KnowledgeEngine):
           Fact(return_or_not=MATCH.return_or_not),
           salience=28)
     def ask_adjustment(self, return_or_not):
-        print(type(self.dictionary.get('raw_message')))
         if self.dictionary.get('raw_message').isdigit():
             del self.currentInfo['correct_booking']
             if self.dictionary.get('raw_message') == '1':
@@ -869,10 +868,17 @@ class Chatbot(KnowledgeEngine):
     @Rule(Fact(correct_booking=True),
           salience=26)
     def next_query(self):
-        for key in all_current_info:
-            if key in self.currentInfo:
-                del self.currentInfo[key]
-        if self.dictionary.get('confirmation') == '':
+        if self.dictionary.get('confirmation'):
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+            send_message(random.choice(bot_feedback['next_query']))
+        elif self.dictionary.get('confirmation') == False:
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+            send_message(random.choice(bot_feedback['show_gratitude']))
+        elif self.dictionary.get('confirmation') == '':
             send_message(random.choice(bot_feedback['next_query']))
         else:
             send_message(random.choice(bot_feedback['no_answer']))
