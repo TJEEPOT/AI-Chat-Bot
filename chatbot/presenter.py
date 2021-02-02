@@ -17,7 +17,7 @@ import random
 from flask import Flask, render_template, request, jsonify, make_response
 import speech_recognition as sr
 from chatbot.nlp import parse_user_input
-from flask_socketio import SocketIO, send
+from flask_socketio import SocketIO, send, emit
 
 __author__ = "Sam Humphreys"
 __credits__ = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
@@ -64,6 +64,9 @@ def __process_speech(user_audio):
 def send_message(bot_response):
     send(bot_response)
 
+
+def send_list(message_to_send, list_to_send):
+    emit('list', ({"passed_message": message_to_send, "passed_list": list_to_send}))
 
 @socketio.on('connect')
 def user_connected():

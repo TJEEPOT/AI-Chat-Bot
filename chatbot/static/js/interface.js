@@ -14,6 +14,23 @@ socket.on('message', function(msg){
 })
 
 
+socket.on('list', function (msg){
+    var listId = Date.now()
+    addMessage(msg.passed_message,"bot-message",botName,listId)
+    msg.passed_list.forEach((value)=>{
+        document.getElementById(listId).insertAdjacentHTML('beforeend', '<br>');
+        var button = document.createElement('button')
+        button.setAttribute('class','list-button')
+        button.addEventListener("click", ()=>{
+            inputBox = document.getElementById("message-input-box")
+            inputBox.value = button.innerHTML
+            submit()
+        })
+        button.innerHTML = value
+        document.getElementById(listId).appendChild(button)
+    })
+    document.getElementById(listId).scrollIntoView({block:"start", behavior: "smooth"})
+})
 
 document.getElementById("message-input-box").addEventListener('keyup', function (e){
     if (e.code === 'Enter'){
@@ -80,34 +97,14 @@ window.addEventListener('DOMContentLoaded', ()=>{
  * Retrieves user input-box and gets the response from the chatbot. Adds both to the chat window using addMessage
  *
  */
-// function submit(){
-//             inputBox = document.getElementById("message-input-box");
-//             userMessage = inputBox.value
-//             if (userMessage !== ""){
-//             addMessage(inputBox.value, "human-message", "You")
-//             response = fetch('get_reply', {
-//               method: 'post',
-//               headers: {
-//                 'Content-Type': 'application/json'
-//               },
-//               body: JSON.stringify(userMessage)
-//             }).then(function (response){
-//                 response.json().then(function (data){
-//                     addMessage(data.message, "bot-message", botName);
-//                     if (useTextToSpeech){readMessage(data.message);};
-//                 })
-//             });
-//             inputBox.value = "";
-//             }
-// }
 function submit(){
              inputBox = document.getElementById("message-input-box");
              userMessage = inputBox.value
              if (userMessage !== "") {
                  addMessage(inputBox.value, "human-message", "You")
                  socket.send(userMessage);
-             }
 
+             }
               inputBox.value = "";
 }
 /**
@@ -148,7 +145,7 @@ function filterLinks(message){      // needs changing depending how the ticket i
  * @param userType {string} type of user sending the message (valid inputs are "human-message" or "bot-message")
  * @param name {string} the name of the bot or user
  */
-function addMessage(message, userType, name){
+function addMessage(message, userType, name, divId = Date.now()){
     var date = new Date()
     const baseHTML = ` <div class="${userType}">
                 <div class="main-message-wrapper">
@@ -156,15 +153,14 @@ function addMessage(message, userType, name){
                         <div class="user-message-name">${name}</div>
                         <div class="user-message-time">${("0" + date.getHours()).slice(-2)}:${("0" + date.getMinutes()).slice(-2)}</div>
                     </div>
-                    <div class="user-message-content">
+                    <div class="user-message-content" id=${divId}>
                         ${message}
                     </div>
                 </div>
             </div>
             `;
     document.getElementById("chat-box").insertAdjacentHTML('beforeend', baseHTML);
-    document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight
-    document.getElementById("message-input-box").scrollIntoView({block:"start", behavior: "smooth"})
+    document.getElementById(divId).scrollIntoView({block:"start", behavior: "smooth"})
 }
 
 /**
