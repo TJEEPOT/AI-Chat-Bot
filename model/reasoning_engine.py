@@ -22,7 +22,7 @@ import sqlite3
 import datetime
 from experta import *
 import random
-from chatbot.presenter import send_message
+from chatbot.presenter import send_message, send_list
 from model.scraper import single_fare, return_fare
 from data.process_data import user_to_query
 
@@ -31,8 +31,6 @@ __credits__ = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
 __maintainer__ = "Steven Diep"
 __email__ = "steven_diep@hotmail.co.uk"
 __status__ = "Prototype"  # "Development" "Prototype" "Production"
-
-# TODO integrate dictionary bot_feedback
 
 now = datetime.datetime.now()
 current_hour_minute = datetime.time(now.hour, now.minute)
@@ -349,16 +347,9 @@ class Chatbot(KnowledgeEngine):
                     c.execute("SELECT name FROM stations WHERE county=:location ORDER BY served_2019 DESC",
                               {'location': self.dictionary['suggestion'][station_or_location]['location']})
                     top_5_stations = c.fetchmany(5)
-                    string = ""
-                    count = 0
-                    for list_all in top_5_stations:
-                        string += str(list_all[0])
-                        count += 1
-                        if count < len(top_5_stations):
-                            string += ", "
-                    send_message("Here is a list of possible stations in " +
+                    send_list("Here is a list of possible stations in " +
                                  self.dictionary['suggestion'][station_or_location]['location'] +
-                                 " you may be referring to: " + string)
+                                 " you may be referring to: ", top_5_stations)
                     if self.dictionary.get('to_station') != '':
                         self.currentInfo['to_station'] = self.dictionary.get('to_station')
                         self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
@@ -434,16 +425,9 @@ class Chatbot(KnowledgeEngine):
                     c.execute("SELECT name FROM stations WHERE county=:location ORDER BY served_2019 DESC",
                               {'location': self.dictionary['suggestion'][station_or_location]['location']})
                     top_5_stations = c.fetchmany(5)
-                    string = ""
-                    count = 0
-                    for list_all in top_5_stations:
-                        string += str(list_all[0])
-                        count += 1
-                        if count < len(top_5_stations):
-                            string += ", "
                     send_message("Here is a list of possible stations in " +
                                  self.dictionary['suggestion'][station_or_location]['location'] +
-                                 " you may be referring to: " + string)
+                                 " you may be referring to: ", top_5_stations)
                     break
             #send_message(random.choice(bot_feedback['ask_to_location']))
         elif self.dictionary.get('reset'):
