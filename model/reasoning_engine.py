@@ -808,7 +808,10 @@ class Chatbot(KnowledgeEngine):
           Fact(return_or_not=MATCH.return_or_not),
           salience=28)
     def ask_adjustment(self, return_or_not):
-        if self.dictionary.get('raw_message').isdigit():
+        if self.dictionary.get('raw_message') in ['Departure location', 'Arrival location',
+                                                  'Departure date', 'Departure time',
+                                                  'Change to single/return',
+                                                  'Return date', 'Return time']:
             del self.currentInfo['correct_booking']
             if self.dictionary.get('raw_message') == 'Departure location':
                 engine.reset()
@@ -837,6 +840,8 @@ class Chatbot(KnowledgeEngine):
             elif self.dictionary.get('raw_message') == 'Return time':
                 del self.currentInfo['return_time']
                 send_message(random.choice(bot_feedback['ask_return_time']))
+            else:
+                send_message(random.choice(bot_feedback['no_answer']))
         elif self.dictionary.get('reset'):
             send_message("Okay I will forget everything you have entered.")
             engine.reset()
