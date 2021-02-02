@@ -279,7 +279,7 @@ class Chatbot(KnowledgeEngine):
                              'and most of all provides the cheapest train ticket through user input')
             elif self.dictionary.get('intent') == 'cancel':
                 send_message("For more information on cancelling your ticket please visit: "
-                             "<a href=https://www.greateranglia.co.uk/contact-us/faqs/refunds>Link</a> ")
+                             "<a href=https://www.greateranglia.co.uk/contact-us/faqs/refunds>Link</a>")
             elif self.dictionary.get('intent') == 'change':
                 send_message("If you would like to make adjustments to your ticket please use the link provided: "
                              "<a href=https://www.greateranglia.co.uk/contact-us/faqs/tickets>Link</a>")
@@ -307,21 +307,29 @@ class Chatbot(KnowledgeEngine):
             self.currentInfo['from_crs'] = self.dictionary.get('from_crs')
             self.declare(Fact(departure_location=self.dictionary.get('from_station'),
                               departCRS=self.dictionary.get('from_crs')))
-        elif self.dictionary.get('confirmation') or \
-                ('from_station' not in self.currentInfo and self.dictionary.get('no_category') and
-                isinstance(self.dictionary.get('no_category')[0], str)):
+        elif 'from_station' not in self.currentInfo and self.dictionary.get('no_category') and \
+                isinstance(self.dictionary.get('no_category')[0], str):
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
                       {'location': self.dictionary.get('no_category')[0]})
             crs = c.fetchone()
-            if self.dictionary.get('confirmation'):
-                self.currentInfo['to_station'] = self.currentInfo.get('possible_to_station')
-                self.declare(Fact(arrival_location=self.currentInfo.get('possible_to_station'), arriveCRS=crs[0]))
             if crs is not None:
                 self.currentInfo['from_station'] = self.dictionary.get('no_category')[0]
                 self.currentInfo['from_crs'] = crs[0]
                 self.declare(Fact(departure_location=self.dictionary.get('no_category')[0], departCRS=crs[0]))
+            else:
+                send_message(random.choice(bot_feedback['show_wrong_station']))
+        elif self.dictionary.get('confirmation'):
+            conn = sqlite3.connect(r'..\data\db.sqlite')
+            c = conn.cursor()
+            c.execute("SELECT crs FROM stations WHERE name=:location",
+                      {'location': self.currentInfo.get('possible_from_station')})
+            crs = c.fetchone()
+            if crs is not None:
+                self.currentInfo['to_station'] = self.currentInfo.get('possible_from_station')
+                self.declare(Fact(departure_location=self.currentInfo.get('possible_from_station'), departCRS=crs[0]))
+                self.dictionary['confirmation'] = ''
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
         elif self.dictionary.get('suggestion') and not self.dictionary.get('no_category'):
@@ -355,9 +363,7 @@ class Chatbot(KnowledgeEngine):
                         self.currentInfo['to_station'] = self.dictionary.get('to_station')
                         self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
                     break
-            send_message(random.choice(bot_feedback['ask_from_location']))
-        elif self.dictionary.get('confirmation'):
-            self.currentInfo['from_station'] = self.currentInfo.get('possible_from_station')
+            #send_message(random.choice(bot_feedback['ask_from_location']))
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
             engine.reset()
@@ -386,22 +392,29 @@ class Chatbot(KnowledgeEngine):
             self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
             self.declare(Fact(arrival_location=self.dictionary.get('to_station'),
                               arriveCRS=self.dictionary.get('to_crs')))
-        elif self.dictionary.get('confirmation') or \
-                ('to_station' not in self.currentInfo and self.dictionary.get('no_category') and
-                 self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station') and
-                 isinstance(self.dictionary.get('no_category')[0], str)):
+        elif 'to_station' not in self.currentInfo and self.dictionary.get('no_category') and \
+                 self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station') and \
+                 isinstance(self.dictionary.get('no_category')[0], str):
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
                       {'location': self.dictionary.get('no_category')[0]})
             crs = c.fetchone()
-            if self.dictionary.get('confirmation'):
-                self.currentInfo['to_station'] = self.currentInfo.get('possible_to_station')
-                self.declare(Fact(arrival_location=self.currentInfo.get('possible_to_station'), arriveCRS=crs[0]))
             if crs is not None:
                 self.currentInfo['to_station'] = self.dictionary.get('no_category')[0]
                 self.currentInfo['to_crs'] = crs[0]
                 self.declare(Fact(arrival_location=self.dictionary.get('no_category')[0], arriveCRS=crs[0]))
+            else:
+                send_message(random.choice(bot_feedback['show_wrong_station']))
+        elif self.dictionary.get('confirmation'):
+            conn = sqlite3.connect(r'..\data\db.sqlite')
+            c = conn.cursor()
+            c.execute("SELECT crs FROM stations WHERE name=:location",
+                      {'location': self.currentInfo.get('possible_to_station')})
+            crs = c.fetchone()
+            if crs is not None:
+                self.currentInfo['to_station'] = self.currentInfo.get('possible_to_station')
+                self.declare(Fact(arrival_location=self.currentInfo.get('possible_to_station'), arriveCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
         elif self.dictionary.get('suggestion') and not self.dictionary.get('no_category'): #and self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station')
@@ -432,7 +445,7 @@ class Chatbot(KnowledgeEngine):
                                  self.dictionary['suggestion'][station_or_location]['location'] +
                                  " you may be referring to: " + string)
                     break
-            send_message(random.choice(bot_feedback['ask_to_location']))
+            #send_message(random.choice(bot_feedback['ask_to_location']))
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
             engine.reset()
@@ -443,7 +456,8 @@ class Chatbot(KnowledgeEngine):
                     send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
-            if self.dictionary.get('from_station') != '' or self.dictionary.get('no_category'):
+            if self.dictionary.get('from_station') != '' or self.dictionary.get('no_category') or \
+                    self.dictionary.get('confirmation') == '':
                 send_message(random.choice(bot_feedback['ask_to_location']))
             else:
                 self.dictionary.get('raw_message')
@@ -878,6 +892,24 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
             send_message(random.choice(bot_feedback['show_gratitude']))
+        elif self.dictionary.get('intent') != '':
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+            if self.dictionary.get('intent') == 'ticket' or 'delay':
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                send_message(random.choice(bot_feedback['ask_from_location']))
+            elif self.dictionary.get('intent') == 'help':
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                send_message(random.choice(bot_feedback['ask_help']))
+            elif self.dictionary.get('intent') == 'cancel':
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                send_message("For more information on cancelling your ticket please visit: "
+                             "<a href=https://www.greateranglia.co.uk/contact-us/faqs/refunds>Link</a>")
+            elif self.dictionary.get('intent') == 'change':
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                send_message("If you would like to make adjustments to your ticket please use the link provided: "
+                             "<a href=https://www.greateranglia.co.uk/contact-us/faqs/tickets>Link</a>")
         elif self.dictionary.get('confirmation') == '':
             send_message(random.choice(bot_feedback['next_query']))
         else:
