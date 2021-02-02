@@ -174,8 +174,8 @@ class MyTestCase(unittest.TestCase):
         self.assertDictEqual(expected_output, parse_user_input(text_example))
 
     def test_process_date_depart(self):
-        text_example = "17/01/2021"
-        expected_outward_date = datetime.date(2021, 1, 17)
+        text_example = "04/02/2021"
+        expected_outward_date = datetime.date(2021, 2, 4)
         expected_output = {
             "intent": "",
             "reset": False,
@@ -191,8 +191,8 @@ class MyTestCase(unittest.TestCase):
             "confirmation": "",
             "no_category": [expected_outward_date],
             "suggestion": [], # for station fuzzy matching
-            "sanitized_message": "17012021", #raw message after being sanitized
-            "raw_message": "17/01/2021"
+            "sanitized_message": "04022021", #raw message after being sanitized
+            "raw_message": "04/02/2021"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
 
@@ -527,6 +527,28 @@ class MyTestCase(unittest.TestCase):
             "raw_message": "Tonbridge"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
+
+    def test_location_specific_two(self):
+        text_example = "Ipswitch"
+        expected_output = {
+            "intent": "",
+            "reset": False,
+            "includes_greeting": False,
+            "from_station": "",
+            "from_crs": "",
+            "to_station": "",
+            "to_crs": "",
+            "outward_date": "",
+            "outward_time": "",
+            "return_date": "",
+            "return_time": "",
+            "confirmation": "",
+            "no_category": ["Ipswich"],
+            "suggestion": [{'station': 'Ipswich'}],  # for station fuzzy matching
+            "sanitized_message": "ipswich",  # raw message after being sanitized
+            "raw_message": "Ipswitch"
+        }
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
     def test_fuzzymatching(self):
         text_example = "match me"
 
@@ -540,6 +562,14 @@ class MyTestCase(unittest.TestCase):
         print(f'Fixed: {corrected_text}')
         self.assertEqual(expected_result,corrected_text)
 
+    def test_spellcheck_two(self):
+        text_example = "ipswiche"
+        loaded_words = ['ipswich']
+        print(f'Original: {text_example}')
+        expected_result = "ipswich"
+        corrected_text = check_spellings(text_example, loaded_words)
+        print(f'Fixed: {corrected_text}')
+        self.assertEqual(expected_result,corrected_text)
     def test_strip(self):
         text_example = "^$£%^&''I want! to tra!vel to (london)"
         expected_result = "I want to travel to london"

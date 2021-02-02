@@ -50,7 +50,7 @@ def parse_user_input(user_input):
     cancellation = ['cancel', 'cancelation', 'cancellation']
     changes = ['change']
     confirm_yes = ["correct", "yes", "yep", "y"]
-    confirm_no = ["incorrect", "no", "wrong"]
+    confirm_no = ["incorrect", "no", "wrong", "nothing", "that is all"]
     reset = ["reset", "re do", "start again", "start over", "restart"]
 
     # populate lists from db
@@ -189,13 +189,13 @@ def parse_user_input(user_input):
                 midnight_requested = True
             if token.text.lower() == "today":
                 today_date = datetime.datetime.today().date()
-                input_string = input_string.replace("today", str(today_date))
+                input_string = input_string.replace("today", today_date.strftime('%d/%m/%Y'))
                 #today_date = today_date.replace(hour=0, minute=0, second=0, microsecond=0)
                 #found_dates.append(today_date)
             elif token.text.lower() == "tomorrow":
                 date_tomorrow = (datetime.datetime.today() + timedelta(1)).date()
                 print(date_tomorrow)
-                input_string = input_string.replace("tomorrow", str(date_tomorrow))
+                input_string = input_string.replace("tomorrow", date_tomorrow.strftime('%d/%m/%Y'))
                 #date_tomorrow = date_tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
                 #found_dates.append(date_tomorrow)
 
@@ -317,11 +317,11 @@ def parse_user_input(user_input):
 def check_spellings(raw_input, known_words=None):
     if known_words is None:
         known_words = []
-    spell = SpellChecker()
+    spell = SpellChecker(distance=2)
     known_lower = []
     for word in known_words:
         known_lower.append(word.lower())
-
+    spell.word_frequency.load_words(known_lower)
     corrected_user_input_string = str(raw_input)
     spelling_mistakes = spell.unknown(str(raw_input).split(" "))
     for mistake in spelling_mistakes:
