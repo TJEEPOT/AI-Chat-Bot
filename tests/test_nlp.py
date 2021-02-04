@@ -27,7 +27,7 @@ class MyTestCase(unittest.TestCase):
             "raw_message": "book tickets"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
-        text_example = "late"
+        text_example = "delayed"
         expected_output = {
             "intent": "delay",
             "reset": False,
@@ -43,8 +43,8 @@ class MyTestCase(unittest.TestCase):
             "confirmation": "",
             "no_category": [],
             "suggestion": [], # for station fuzzy matching
-            "sanitized_message": "late", #raw message after being sanitized
-            "raw_message": "late"
+            "sanitized_message": "delayed", #raw message after being sanitized
+            "raw_message": "delayed"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
         text_example = "help"
@@ -87,7 +87,7 @@ class MyTestCase(unittest.TestCase):
             "raw_message": "change my ticket"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
-        text_example = "cancel a ticket"
+        text_example = "cancellation"
         expected_output = {
             "intent": "cancel",
             "reset": False,
@@ -103,8 +103,8 @@ class MyTestCase(unittest.TestCase):
             "confirmation": "",
             "no_category": [],
             "suggestion": [], # for station fuzzy matching
-            "sanitized_message": "cancel a ticket", #raw message after being sanitized
-            "raw_message": "cancel a ticket"
+            "sanitized_message": "cancellation", #raw message after being sanitized
+            "raw_message": "cancellation"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
 
@@ -428,8 +428,31 @@ class MyTestCase(unittest.TestCase):
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
 
+
+    def test_process_input_crs(self):
+        text_example = "nrw to FOG"
+        expected_outward_date = datetime.date.today()
+        expected_output = {
+            "intent": "",
+            "reset": False,
+            "includes_greeting": False,
+            "from_station": "Norwich",
+            "from_crs": "NRW",
+            "to_station": "Forest Gate",
+            "to_crs": "FOG",
+            "outward_date": "",
+            "outward_time": "",
+            "return_date": "",
+            "return_time": "",
+            "confirmation": "",
+            "no_category": [],
+            "suggestion": [], # for station fuzzy matching
+            "sanitized_message": "nrw to fog", #raw message after being sanitized
+            "raw_message": "nrw to FOG"
+        }
+        self.assertDictEqual(expected_output, parse_user_input(text_example))
     def test_process_input_multiple(self):
-        text_example = "i want a ticket to lodnon"
+        text_example = "i want a Ticket to lodnon"
         expected_output = {
             "intent": "ticket",
             "reset": False,
@@ -446,7 +469,7 @@ class MyTestCase(unittest.TestCase):
             "no_category": [],
             "suggestion": [{'location': 'Greater London'}], # for station fuzzy matching
             "sanitized_message": "i want a ticket to london", #raw message after being sanitized
-            "raw_message": "i want a ticket to lodnon"
+            "raw_message": "i want a Ticket to lodnon"
         }
         self.assertDictEqual(expected_output, parse_user_input(text_example))
 
@@ -501,8 +524,7 @@ class MyTestCase(unittest.TestCase):
             "sanitized_message": "i would like to book a ticket from norwich to forest gate on 20210909 at 1200 and returning on 20210909 at 2000", #raw message after being sanitized
             "raw_message": "I would like to book a ticket from Norwich to Forest Gate on 2021/09/09 at 12:00 and returning on 2021/09/09 at 20:00"
         }
-        print (expected_output)
-        print (parse_user_input(text_example))
+
         self.assertDictEqual(expected_output, parse_user_input(text_example))
 
 
@@ -556,19 +578,15 @@ class MyTestCase(unittest.TestCase):
 
     def test_spellcheck(self):
         text_example = "I want to travle to lodnon"
-        print(f'Original: {text_example}')
         expected_result = "I want to travel to london"
         corrected_text = check_spellings(text_example)
-        print(f'Fixed: {corrected_text}')
         self.assertEqual(expected_result,corrected_text)
 
     def test_spellcheck_two(self):
         text_example = "ipswiche"
         loaded_words = ['ipswich']
-        print(f'Original: {text_example}')
         expected_result = "ipswich"
         corrected_text = check_spellings(text_example, loaded_words)
-        print(f'Fixed: {corrected_text}')
         self.assertEqual(expected_result,corrected_text)
     def test_strip(self):
         text_example = "^$£%^&''I want! to tra!vel to (london)"
@@ -577,9 +595,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_sanitize(self):
         text_example = "^$£%^&''I want! to <b>tra!vEl</b> to (lodn&on)"
-        print(f'Original: {text_example}')
         expected_result = "i want to travel to london"
-        print(f'Fixed: {expected_result}')
         self.assertEqual(expected_result, sanitize_input(text_example))
 if __name__ == '__main__':
     unittest.main()
