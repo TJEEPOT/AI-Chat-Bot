@@ -467,13 +467,11 @@ class Chatbot(KnowledgeEngine):
             delay_time = self.dictionary.get('raw_message').split()
             for minutes in delay_time:
                 if minutes.isdigit():
-                    print(tpl_stations[0])
-                    print(int(minutes))
-                    print(user_to_query(tpl_stations[0], tpl_stations[1], int(minutes)))
                     send_message("Departure location: " + departure_location + "<br>"
-                                                                               "Arrival location: " + arrival_location + "<br>"
-                                                                                                                         "Minutes you were delayed by: " + minutes + "<br>"
-                                                                                                                                                                     "Minutes you will be delayed till your final destination: ")
+                                    "Arrival location: " + arrival_location + "<br>"
+                                    "Time you were delayed by: " + minutes + " minutes<br>"
+                                    "Time you will be delayed till your final destination: " +
+                                 str(user_to_query(tpl_stations[0], tpl_stations[1], int(minutes))) + " minutes")
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
             engine.reset()
@@ -485,7 +483,7 @@ class Chatbot(KnowledgeEngine):
                     break
         else:
             if self.dictionary.get('to_station') != '' or self.dictionary.get('no_category'):
-                send_message(random.choice(bot_feedback['ask_time_delayed']))  # TODO reset here
+                send_message(random.choice(bot_feedback['ask_time_delayed']))
             else:
                 self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['no_answer']))
@@ -737,72 +735,6 @@ class Chatbot(KnowledgeEngine):
             else:
                 self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['no_answer']))
-
-    '''@Rule(Fact(return_or_not=MATCH.return_or_not),
-          Fact(departure_location=MATCH.departure_location, departCRS=MATCH.departCRS),
-          Fact(arrival_location=MATCH.arrival_location, arriveCRS=MATCH.arriveCRS),
-          Fact(departure_date=MATCH.departure_date),
-          Fact(leaving_time=MATCH.leaving_time),
-          Fact(return_date=MATCH.return_date),
-          Fact(return_time=MATCH.return_time),
-          NOT(Fact(correct_booking=True | False)),
-          salience=30)
-    def ask_correct_booking(self, return_or_not, departure_location, departCRS,
-                            arrival_location, arriveCRS, departure_date, leaving_time,
-                            return_date, return_time):
-        if 'correct_booking' in self.currentInfo:
-            self.currentInfo['correct_booking'] = self.dictionary.get('confirmation')
-            if self.currentInfo.get('correct_booking'):  # if confirmation is correct
-                if return_or_not:  # is a return ticket
-                    cost, time_out, time_ret, url = return_fare(departCRS, arriveCRS,
-                                                                str(departure_date).replace('-', '/'),
-                                                                leaving_time.strftime("%H:%M"),
-                                                                str(return_date).replace('-', '/'),
-                                                                return_time.strftime("%H:%M"))
-                    send_message(random.choice(bot_feedback['found_return_ticket'])
-                                 + "<br>Total cost: " + str(cost)
-                                 + "<br>Time outward: " + str(time_out)
-                                 + "<br>Time return: " + str(time_ret)
-                                 + "<br>URL: " + "<a href=" + str(url)
-                                 + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
-                else:
-                    cost, time, url = single_fare(departCRS, arriveCRS,
-                                                  str(departure_date).replace('-', '/'),
-                                                  leaving_time.strftime("%H:%M"))
-                    send_message(random.choice(bot_feedback['found_single_ticket'])
-                                 + "<br>Total cost: " + str(cost)
-                                 + "<br>Time: " + str(time)
-                                 + "<br>URL: " + "<a href=" + str(url)
-                                 + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
-                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to next query
-                self.dictionary['confirmation'] = ''
-            elif not self.currentInfo.get('correct_booking'):
-                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to ask adjustment
-                #self.dictionary['confirmation'] = ''
-            else:
-                self.dictionary.get('raw_message')
-                send_message(random.choice(bot_feedback['no_answer']))
-        elif self.dictionary.get('reset'):
-            send_message("Okay I will forget everything you have entered.")
-            engine.reset()
-            for key in all_current_info:
-                if key in self.currentInfo:
-                    del self.currentInfo[key]
-                elif self.currentInfo == {}:
-                    break
-        else:
-            self.currentInfo['correct_booking'] = ''
-            no_return = "Please confirm your booking..." \
-                        "<br>Departure datetime: " + str(departure_date) + " at " + leaving_time.strftime("%H:%M") \
-                        + "<br>Departing from: " + str(departure_location) \
-                        + "<br>Arriving at: " + str(arrival_location)
-            if return_or_not:
-                returning = no_return \
-                            + "<br>Returning datetime: " + str(return_date) \
-                            + " at " + return_time.strftime("%H:%M")
-                send_message(returning)
-            else:
-                send_message(no_return)'''
 
     @Rule(Fact(correct_booking=False),
           Fact(return_or_not=MATCH.return_or_not),
