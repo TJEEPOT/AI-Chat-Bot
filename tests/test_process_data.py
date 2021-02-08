@@ -4,15 +4,11 @@ from context import process, services
 
 class MyTestCase(unittest.TestCase):
 
-    def test_read_from_csv(self):
-        data = process.read_from_csv(r"..\data\scraped\processed\scraped0.csv")
-        self.assertEqual("", data[1][2])
-
     def test_transform_data_dep(self):
         data = ["201701267101240", "NRCH", "", "", "06:00", "", "", "", "", "", "06:01"]
         source, date, delay = process.entry_to_query(data)
         dest     = "DISS"
-        network  = services.get_network()
+        network  = services.get_network("ga_intercity")
         path     = network.find_path(source, dest)
         stn_from = path[0]
         stn_to   = path[1]
@@ -20,31 +16,68 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(["NRCH", "DISS", 4, 1, 0, 6], processed_entry)
 
     def test_transform_data_arrived_next_day(self):
-        data = ["201810097681184", "STFD", "23:54:30", "", "", "", "", "", "00:00", "", ""]
+        data = ["201810097681184", "SHENFLD", "23:54:30", "", "", "", "", "", "00:00", "", ""]
         source, date, delay = process.entry_to_query(data)
-        dest     = "BTHNLGR"
-        network  = services.get_network()
+        dest     = "STFD"
+        network  = services.get_network("ga_intercity")
         path     = network.find_path(source, dest)
         stn_from = path[0]
         stn_to   = path[1]
         processed_entry = process.query_to_input(stn_from, stn_to, date)
 
-        self.assertEqual(["STFD", "BTHNLGR", 2, 1, 1, 23], processed_entry)
+        self.assertEqual(["SHENFLD", "STFD", 2, 1, 1, 23], processed_entry)
         self.assertEqual(6, delay)
 
     def test_transform_data_arrived_prev_day(self):
-        data = ["201810097681184", "BTHNLGR", "00:01:30", "", "", "", "", "", "23:59", "", ""]
+        data = ["201810097681184", "STFD", "00:01:30", "", "", "", "", "", "23:59", "", ""]
         source, date, delay = process.entry_to_query(data)
         dest     = "LIVST"
-        network  = services.get_network()
+        network  = services.get_network("ga_intercity")
         path     = network.find_path(source, dest)
         stn_from = path[0]
         stn_to   = path[1]
         processed_entry = process.query_to_input(stn_from, stn_to, date)
 
-        self.assertEqual(["BTHNLGR", "LIVST", 2, 1, 1, 0], processed_entry)
+        self.assertEqual(["STFD", "LIVST", 2, 1, 1, 0], processed_entry)
         self.assertEqual(-2, delay)
-        
+
+    def test_user_to_query_adj(self):
+        # testing adjacent stations
+        delay = process.user_to_query("DISS", "STWMRKT", 2)
+        print(delay)
+        self.assertGreaterEqual(4, delay)
+
+    def test_user_to_query_to_london(self):
+        delay = process.user_to_query("STWMRKT", "STFD", 3)
+        print(delay)
+        self.assertGreaterEqual(8, delay)
+
+    def test_user_to_query_to_norwich(self):
+        delay = process.user_to_query("SHENFLD", "NRCH", 3)
+        print(delay)
+        self.assertGreaterEqual(12, delay)
+
+    def test_user_to_query_full_journey(self):
+        delay = process.user_to_query("NRCH", "LIVST", 2)
+        print(delay)
+        self.assertGreaterEqual(12, delay)
+
+    def test_user_to_query_large_delay(self):
+        delay = process.user_to_query("IPSWICH", "STFD", 20)
+        print(delay)
+        self.assertGreaterEqual(30, delay)
+
+    def test_user_to_query_huge_delay(self):
+        delay = process.user_to_query("IPSWICH", "STFD", 50)
+        # might as well wait for another train.
+        print(delay)
+        self.assertGreaterEqual(60, delay)
+
+    def test_user_to_query_no_delay(self):
+        delay = process.user_to_query("IPSWICH", "STFD", 0)
+        # might as well wait for another train.
+        print(delay)
+        self.assertGreaterEqual(3, delay)
 
     # dropping the rest of these tests for now since they need to be rewritten as above to work right now,
     # but I'll be making changes to process_data.py soon to remove the network requirement from query_to_input

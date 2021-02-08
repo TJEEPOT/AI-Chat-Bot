@@ -164,7 +164,7 @@ def __read_hsp_from_csv(file, valid_tpl):
     return data
 
 
-def __read_weather_data():  # TBA one day.
+def __read_weather_data():  # TBA.
     pass
 
 
@@ -181,17 +181,16 @@ def user_to_query(source, destination, delay):
     now     = datetime.now()
     network = services.get_network("ga_intercity")
     path    = network.find_path(source, destination)
-    path.append(path[-1])
 
     train_data = []
-    for i in range(0, len(path)):
+    for i in range(len(path)-1):
         stn_from = path[i]
         stn_to   = path[i+1]
         processed_entry = query_to_input(stn_from, stn_to, now)
         train_data.append(processed_entry)
 
     total_delay = int(delay)
-    # Put data into the model here
+
     for train in train_data:
         total_delay += model.use_model(train, total_delay, network)
 

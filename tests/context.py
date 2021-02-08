@@ -12,4 +12,4 @@ import model.prediction_model as model
 import chatbot.presenter as presenter
 import data.process_data as process
 import data.services as services
-from data.services import Network
+from data.services import Network as network
