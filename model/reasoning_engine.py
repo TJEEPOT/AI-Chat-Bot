@@ -507,8 +507,12 @@ class Chatbot(KnowledgeEngine):
                 self.dictionary.get('no_category')[0] != self.currentInfo.get('to_station') and \
                 isinstance(self.dictionary.get('no_category')[0], datetime.date):
             if datetime.date.today() <= self.dictionary.get('no_category')[0]:
-                self.currentInfo['outward_date'] = self.dictionary.get('no_category')[0]
-                self.declare(Fact(departure_date=self.dictionary.get('no_category')[0]))
+                if datetime.date.today() + datetime.timedelta(weeks=11) > self.dictionary.get('no_category')[0]:
+                    self.currentInfo['outward_date'] = self.dictionary.get('no_category')[0]
+                    self.declare(Fact(departure_date=self.dictionary.get('no_category')[0]))
+                else:
+                    send_message("Date can not be more than 11 weeks in the future. "
+                                 "Please enter a valid departure date.")
             else:
                 send_message(random.choice(bot_feedback['past_date']))
         elif self.dictionary.get('reset'):
@@ -614,8 +618,12 @@ class Chatbot(KnowledgeEngine):
                 send_message(random.choice(bot_feedback['past_departure_date']))
         elif 'return_date' not in self.currentInfo and self.dictionary.get('no_category'):
             if departure_date <= self.dictionary.get('no_category')[0]:
-                self.currentInfo['return_date'] = self.dictionary.get('no_category')[0]
-                self.declare(Fact(return_date=self.dictionary.get('no_category')[0]))
+                if datetime.date.today() + datetime.timedelta(weeks=11) > self.dictionary.get('no_category')[0]:
+                    self.currentInfo['return_date'] = self.dictionary.get('no_category')[0]
+                    self.declare(Fact(return_date=self.dictionary.get('no_category')[0]))
+                else:
+                    send_message("Date can not be more than 11 weeks in the future. "
+                                 "Please enter a valid return date.")
             else:
                 send_message(random.choice(bot_feedback['past_departure_date']))
         elif self.dictionary.get('reset'):
