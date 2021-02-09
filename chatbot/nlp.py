@@ -46,7 +46,7 @@ def parse_user_input(user_input):
     book_ticket = ["book", "TICKET", "travel", "go"]  # maybe get from db
     greetings = ["hi", "hello", "hey"]
     get_help = ["help", "assistance"]
-    delays = ["delay", "late", "behind schedule"]
+    delays = ["delay", "late", "behind schedule", "delays"]
     cancellation = ['cancel', 'cancelation', 'cancellation']
     changes = ['change']
     confirm_yes = ["correct", "yes", "yep", "y"]
@@ -183,22 +183,27 @@ def parse_user_input(user_input):
         midnight_vars = ['midnight', '12am', '00:00']
         midnight_requested = False
         midnight_time = datetime.time(0, 0)
-
+        input_string = user_input
         for token in doc:
             if token.text.lower in midnight_vars:
                 midnight_requested = True
             if token.text.lower() == "today":
-                today_date = datetime.datetime.today()
-                today_date = today_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                found_dates.append(today_date)
+                today_date = datetime.datetime.today().date()
+                input_string = input_string.replace("today", str(today_date))
+                #today_date = today_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                #found_dates.append(today_date)
             elif token.text.lower() == "tomorrow":
-                date_tomorrow = (datetime.datetime.today() + timedelta(1))
-                date_tomorrow = date_tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
-                found_dates.append(date_tomorrow)
+                date_tomorrow = (datetime.datetime.today() + timedelta(1)).date()
+                print(date_tomorrow)
+                input_string = input_string.replace("tomorrow", str(date_tomorrow))
+                #date_tomorrow = date_tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
+                #found_dates.append(date_tomorrow)
 
-        date_matches = datefinder.find_dates(user_input)
+
+        date_matches = datefinder.find_dates(input_string)
         for dateMatch in date_matches:
             found_dates.append(dateMatch)
+            print(dateMatch)
         number_of_dates = len(found_dates)
         outward_date = ""
         outward_time = ""
@@ -299,7 +304,7 @@ def parse_user_input(user_input):
                 if current_token.i == (len(doc) - 1):    # early exit if entire string matched (prevent repeat)
                     break
 
-    corrected_input = sanitize_input(user_input, station_crs)
+    corrected_input = sanitize_input(user_input, station_crs + station_names)
     doc = nlp(corrected_input)
     phrase_matcher(doc)
     match_dates()
