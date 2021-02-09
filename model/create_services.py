@@ -57,19 +57,21 @@ def build_ga_intercity():
 
 def build_model():
     n = services.get_network("ga_intercity")
-    model.knn_model_trainer("DISS", "STWMRKT", n)
+    model.ann_model_trainer("DISS", "STWMRKT", n)
+    # model.knn_model_trainer("DISS", "STWMRKT", n)
 
 
 def build_all_station_models():
     n = services.get_network("ga_intercity")
-    # path = n.find_path("NRCH", "LIVST")
-    path = n.find_path("LIVST", "NRCH")
+    path = n.find_path("NRCH", "LIVST")
+    # path = n.find_path("LIVST", "NRCH")
     path.append(path[-1])
 
     for i in range(len(path)-1):
         stn_from = path[i].get_id()
         stn_to   = path[i+1].get_id()
-        model.knn_model_trainer(stn_from, stn_to, n)
+        model.ann_model_trainer(stn_from, stn_to, n)
+        # model.knn_model_trainer(stn_from, stn_to, n)
 
 
 if __name__ == "__main__":

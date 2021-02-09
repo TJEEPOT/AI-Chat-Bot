@@ -8,10 +8,15 @@ File    : test_prediction_model.py
 Date    : Monday 28 December 2020
 Desc.   : Testing methods in prediction_model.py
 History : 28/12/2020 - v1.0 - Create project file
+          08/01/2020 - v1.1 - Add tests
+          06/02/2020 - v1.2 - Fixed tests due to change in how networks work.
 
 """
 import unittest
-from context import model
+from datetime import datetime
+from context import model, process, services
+
+network = services.get_network("ga_intercity")
 
 
 class MyTestCase(unittest.TestCase):
@@ -42,8 +47,8 @@ class MyTestCase(unittest.TestCase):
             total_delay += model.use_model(train, total_delay, network)
 
         print("Total delay is", total_delay, "minutes.")
-        self.assertGreaterEqual(2, total_delay)
-        self.assertLessEqual(-10, total_delay)
+        self.assertGreaterEqual(3, total_delay)
+        self.assertLessEqual(-3, total_delay)
 
     def test_use_model_livst_nrch(self):
         now = datetime.now()
@@ -62,7 +67,7 @@ class MyTestCase(unittest.TestCase):
             total_delay += model.use_model(train, total_delay, network)
 
         print("Total delay is", total_delay, "minutes.")
-        self.assertGreaterEqual(2, total_delay)
+        self.assertGreaterEqual(10, total_delay)
         self.assertLessEqual(-6, total_delay)
 
     def test_use_model_clchstr_nrch_5(self):
@@ -82,7 +87,7 @@ class MyTestCase(unittest.TestCase):
             total_delay += model.use_model(train, total_delay, network)
 
         print("Total delay is", total_delay, "minutes.")
-        self.assertGreaterEqual(10, total_delay)
+        self.assertGreaterEqual(15, total_delay)
         self.assertLessEqual(-5, total_delay)
 
     def test_use_model_clchstr_livst_5(self):

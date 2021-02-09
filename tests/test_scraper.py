@@ -19,25 +19,25 @@ class TestStringMethods(unittest.TestCase):
 
     def test_single_basic(self):
         # greater anglia, ensure date and time is correctly formatted, cheapest fare is the first result on page
-        cost, time, url = scraper.single_fare("NRW", "LST", "2021/01/29", "16:30")
+        cost, time, url = scraper.single_fare("NRW", "LST", "2021/02/13", "16:30")
         self.assertEqual("£10.00", cost)
-        self.assertEqual("17:03", time)
-        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/290121/1630/dep", url)
+        self.assertEqual("17:04", time)
+        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/130221/1630/dep", url)
         # print("The cheapest fare is {} departing at {}. Book this ticket at {}".format(fare, time, url))
 
     def test_single_date(self):
         # greater anglia, testing non-norwich stations and non-quarterly time, cheapest fare is the ### result
-        cost, time, url = scraper.single_fare("CHM", "IPS", "2021/02/03", "11:05")
+        cost, time, url = scraper.single_fare("CHM", "IPS", "2021/02/13", "11:05")
         self.assertEqual("£16.00", cost)
-        self.assertEqual("11:03", time)
-        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/CHM/IPS/030221/1105/dep", url)
+        self.assertEqual("11:10", time)
+        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/CHM/IPS/130221/1105/dep", url)
 
     def test_single_multi_route(self):
         # testing that a route that requires multiple networks will deliver results
-        cost, time, url = scraper.single_fare("PNZ", "GOF", "2021/01/29", "16:30")
-        self.assertEqual("£259.30", cost)
-        self.assertEqual("22:09", time)
-        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/PNZ/GOF/290121/1630/dep", url)
+        cost, time, url = scraper.single_fare("PNZ", "GOF", "2021/02/14", "16:30")
+        self.assertEqual("£158.00", cost)
+        self.assertEqual("04:58", time)
+        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/PNZ/GOF/140221/1630/dep", url)
 
     def test_single_future_date(self):
         # testing date more than 12 weeks in the future, should return error
@@ -66,31 +66,31 @@ class TestStringMethods(unittest.TestCase):
     def test_return_same_day(self):
         # testing the same-day return works correctly
         cost, time_out, time_ret, url = scraper.return_fare(
-            "NRW", "LST", "2021/01/29", "16:30", "2021/01/29", "18:00")
+            "NRW", "LST", "2021/02/13", "16:30", "2021/02/13", "18:00")
         self.assertEqual("£20.00", cost)
-        self.assertEqual("17:03", time_out)
-        self.assertEqual("20:30", time_ret)
-        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/290121/1630/dep/290121"
+        self.assertEqual("17:04", time_out)
+        self.assertEqual("19:38", time_ret)
+        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/130221/1630/dep/130221"
                          "/1800/dep", url)
 
     def test_return_separate_days(self):
         # out and return are different days
         cost, time_out, time_ret, url = scraper.return_fare(
-            "NRW", "LST", "2021/01/29", "16:30", "2021/02/05", "18:00")
+            "NRW", "LST", "2021/02/13", "16:30", "2021/02/16", "18:00")
         self.assertEqual("£20.00", cost)
-        self.assertEqual("17:03", time_out)
+        self.assertEqual("17:04", time_out)
         self.assertEqual("20:30", time_ret)
-        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/290121/1630/dep/050221"
+        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/130221/1630/dep/160221"
                          "/1800/dep", url)
 
     def test_return_one_price(self):
         # only one price is given for out and return journeys
         cost, time_out, time_ret, url = scraper.return_fare(
-            "NRW", "LST", "2021/01/29", "16:30", "2021/02/01", "05:00")
-        self.assertEqual("£58.30", cost)
-        self.assertEqual("16:30", time_out)
-        self.assertEqual("06:28", time_ret)
-        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/290121/1630/dep/010221"
+            "NRW", "LST", "2021/02/13", "16:30", "2021/02/15", "05:00")
+        self.assertEqual("£20.00", cost)
+        self.assertEqual("17:04", time_out)
+        self.assertEqual("06:25", time_ret)
+        self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/NRW/LST/130221/1630/dep/150221"
                          "/0500/dep", url)
 
     def test_return_past_date(self):
