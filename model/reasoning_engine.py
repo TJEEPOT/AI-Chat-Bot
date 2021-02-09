@@ -80,8 +80,7 @@ bot_feedback = {
         "Where are you travelling to?",
         "Please tell me the station you are arriving at.",
         "What station are you going to?",
-        "What station are you travelling to?",
-        "Where is the station you are arriving at?"
+        "What station are you travelling to?"
     ],
     'show_wrong_station': [
         "Please enter a valid station.",
@@ -198,35 +197,9 @@ bot_feedback = {
         "Is there anything else I can help you with?",
         "Do you still need any help?"
     ],
-    'passive_aggressive_feedback': [
-        "Good evening, you dense bastard. Did you get kicked in the head by a horse? "
-        "Hurry up and answer appropriately, you dirty imbecile."
-    ],
     'reset': [
         "Okay I will forget everything you have entered.",
-        "I will smash my head a couple of times and forget what you said!"
-    ],
-    'play_system_blower': [
-        "Yeah, we came to blow your system (blow)<br>"
-        "You know what I'm sayin'?<br>"
-        "Kill it or die<br>"
-        "Braggin' about how you<br>"
-        "Had it all dialed<br>"
-        "Well, what's up now<br>"
-        "When your shit is-<br>"
-        "How I'm comin', why I'm slingin'<br>"
-        "Where I'm from and what I'm bringin'<br>"
-        "Tell your cousins, best stop sleepin' cause I'm bustin' for no reason at random murder<br>"
-        "Killing season<br>"
-        "But no one heard me<br>"
-        "Cold blood creepin'<br>"
-        "Full tilt swervin'<br>"
-        "Through your bleedin'<br>"
-        "System burnin' to its knees and<br>"
-        "Beggin' for mercy while I'm leanin'<br>"
-        "Hard to the left<br>"
-        "And clockin' a-gripsin' the death pockets of the head knock rhythm<br>"
-        "System blower, system over<br>"
+        "Forgetting what you just said!"
     ]
 }
 
