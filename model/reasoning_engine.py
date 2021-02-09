@@ -205,6 +205,28 @@ bot_feedback = {
     'reset': [
         "Okay I will forget everything you have entered.",
         "I will smash my head a couple of times and forget what you said!"
+    ],
+    'play_system_blower': [
+        "Yeah, we came to blow your system (blow)<br>"
+        "You know what I'm sayin'?<br>"
+        "Kill it or die<br>"
+        "Braggin' about how you<br>"
+        "Had it all dialed<br>"
+        "Well, what's up now<br>"
+        "When your shit is-<br>"
+        "How I'm comin', why I'm slingin'<br>"
+        "Where I'm from and what I'm bringin'<br>"
+        "Tell your cousins, best stop sleepin' cause I'm bustin' for no reason at random murder<br>"
+        "Killing season<br>"
+        "But no one heard me<br>"
+        "Cold blood creepin'<br>"
+        "Full tilt swervin'<br>"
+        "Through your bleedin'<br>"
+        "System burnin' to its knees and<br>"
+        "Beggin' for mercy while I'm leanin'<br>"
+        "Hard to the left<br>"
+        "And clockin' a-gripsin' the death pockets of the head knock rhythm<br>"
+        "System blower, system over<br>"
     ]
 }
 
@@ -250,6 +272,8 @@ class Chatbot(KnowledgeEngine):
         if 'intent' in self.dictionary and self.dictionary.get('intent') != '':
             self.currentInfo['intent'] = self.dictionary.get('intent')
             self.declare(Fact(queryType=self.dictionary.get('intent')))
+        elif self.dictionary.get('sanitized_message') == 'play me system blower by death grips':
+            send_message(bot_feedback['play_system_blower'][0])
         else:
             if self.dictionary.get('includes_greeting'):
                 send_message(random.choice(bot_feedback['greeting']))
@@ -305,8 +329,8 @@ class Chatbot(KnowledgeEngine):
             self.declare(Fact(departure_location=self.dictionary.get('from_station'),
                               departCRS=self.dictionary.get('from_crs')))
         elif 'from_station' not in self.currentInfo and self.dictionary.get('no_category') and \
-                isinstance(self.dictionary.get('no_category')[0], str):
-            conn = sqlite3.connect(r'..\data\db.sqlite')
+                isinstance(self.dictionary.get('no_category')[0], str): # checks if the from and to stations are
+            conn = sqlite3.connect(r'..\data\db.sqlite')              # present in the dictionary given through the NLP
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
                       {'location': self.dictionary.get('no_category')[0]})
@@ -317,7 +341,7 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(departure_location=self.dictionary.get('no_category')[0], departCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
-        elif self.dictionary.get('confirmation'):
+        elif self.dictionary.get('confirmation'):   # confirmation if the suggest station is correct
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
@@ -329,7 +353,7 @@ class Chatbot(KnowledgeEngine):
                 self.dictionary['confirmation'] = ''
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
-        elif self.dictionary.get('suggestion') and (not self.dictionary.get('no_category') or
+        elif self.dictionary.get('suggestion') and (not self.dictionary.get('no_category') or # when there is no options in 'no_category check the suggestions'
                                                     not isinstance(self.dictionary.get('no_category'), str)):
             for station_or_location in range(len(self.dictionary.get('suggestion'))):
                 if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
@@ -449,7 +473,6 @@ class Chatbot(KnowledgeEngine):
                 self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['no_answer']))
 
-    # TODO wait on martin tomorrow to fix the problem
     @Rule(Fact(departure_location=MATCH.departure_location),
           Fact(arrival_location=MATCH.arrival_location),
           Fact(queryType='delay'),
@@ -469,9 +492,9 @@ class Chatbot(KnowledgeEngine):
             for minutes in delay_time:
                 if minutes.isdigit():
                     send_message("Departure location: " + departure_location + "<br>"
-                                                                               "Arrival location: " + arrival_location + "<br>"
-                                                                                                                         "Time you were delayed by: " + minutes + " minutes<br>"
-                                                                                                                                                                  "Time you will be delayed till your final destination: " +
+                                    "Arrival location: " + arrival_location + "<br>"
+                                    "Time you were delayed by: " + minutes + " minutes<br>"
+                                    "Time you will be delayed till your final destination: " +
                                  str(user_to_query(tpl_stations[0], tpl_stations[1], int(minutes))) + " minutes")
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
