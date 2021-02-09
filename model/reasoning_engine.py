@@ -496,6 +496,7 @@ class Chatbot(KnowledgeEngine):
                                     "Time you were delayed by: " + minutes + " minutes<br>"
                                     "Time you will be delayed till your final destination: " +
                                  str(user_to_query(tpl_stations[0], tpl_stations[1], int(minutes))) + " minutes")
+                    refresh_user_knowledge()
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
             engine.reset()
@@ -885,4 +886,8 @@ def process_user_input(info):
 
 def refresh_user_knowledge():
     engine.reset()
-    engine.run()
+    for key in all_current_info:
+        if key in engine.currentInfo:
+            del engine.currentInfo[key]
+        elif engine.currentInfo == {}:
+            break
