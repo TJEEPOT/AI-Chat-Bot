@@ -84,6 +84,11 @@ def user_connected():
     greeting_message = random.choice(bot_feedback['greeting'])  # plug in to random responses
     send(greeting_message)
 
+@socketio.on('disconnect')
+def user_disconnected():
+    from model.reasoning_engine import refresh_user_knowledge
+    print("hello")
+    refresh_user_knowledge()
 
 @socketio.on('message')
 def receive_message(user_input):

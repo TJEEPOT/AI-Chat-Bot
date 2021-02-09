@@ -39,11 +39,16 @@ document.getElementById("message-input-box").addEventListener('keyup', function 
     }
 })
 
-window.speechSynthesis.onvoiceschanged=()=>{
-    let voiceList = speechSynthesis.getVoices();
-    chosenVoice = voiceList[4];     // not sure how to avoid this
-}
+// window.speechSynthesis.onvoiceschanged=()=>{
+//     let voiceList = speechSynthesis.getVoices();
+//     console.log(voiceList)
+//     chosenVoice = voiceList[4];     // not sure how to avoid this
+// }
 
+
+window.addEventListener('beforeunload', function (e) {
+    socket.disconnect()
+});
 window.addEventListener('DOMContentLoaded', ()=>{
 
     navigator.mediaDevices.getUserMedia({audio: true}).then(async function(stream) {
@@ -116,6 +121,10 @@ function submit(){
 function readMessage(message){
         if ('speechSynthesis' in window){
             message = filterLinks(message);
+            console.log(message)
+            let voiceList = speechSynthesis.getVoices();
+            console.log(voiceList)
+            chosenVoice = voiceList[4];     // not sure how to avoid this
             let speechMessage = new SpeechSynthesisUtterance(message);
             speechMessage.voice = chosenVoice;
             speechSynthesis.speak(speechMessage);

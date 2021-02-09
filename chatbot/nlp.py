@@ -23,8 +23,8 @@ def parse_user_input(user_input):
     # variables
     processed_input = {
         "intent": "",  # e.g tickets, help, delays
-        "reset": False,     # e.g True False if user wants to reset dict
-        "includes_greeting": False,     # True if message contained a greeting
+        "reset": False,  # e.g True False if user wants to reset dict
+        "includes_greeting": False,  # True if message contained a greeting
         "from_station": "",  # e.g Norwich
         "from_crs": "",  # e.g NRW
         "to_station": "",  # e.g London Liverpool Street
@@ -34,9 +34,9 @@ def parse_user_input(user_input):
         "return_date": "",  # e.g 20/01/2021 (checks done in RE for future date etc)
         "return_time": "",  # e.g 10:00
         "confirmation": "",  # e.g true / false response for bot asking confirmation
-        "no_category": [],  # any extra data NLP can't work out intent
-        "suggestion": [],   # for station fuzzy matching
-        "sanitized_message": "",    # raw message after being sanitized
+        "no_category": [],  # any extra data NLP can't work out
+        "suggestion": [],   # for station / location fuzzy matching
+        "sanitized_message": "",  # raw message after being sanitized
         "raw_message": ""  # raw message input by user for history etc
     }
     station_names = []
@@ -65,7 +65,7 @@ def parse_user_input(user_input):
         if row[2] and row[2] not in station_locations:
             station_locations.append(row[2])
 
-    nlp = spacy.load("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm", disable=["ner"])
     phrase_matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
     phrase_matcher2 = PhraseMatcher(nlp.vocab, attr="LOWER")
     # build patterns
@@ -299,11 +299,14 @@ def parse_user_input(user_input):
     fuzzy_match_stations()
     return processed_input
 
+
 def get_lemma_string(spacy_doc):
     lemma_string = ""
     for token in spacy_doc:
         lemma_string += " " + token.lemma_.lower()
     return lemma_string
+
+
 def check_spellings(raw_input, known_words=None):
     if known_words is None:
         known_words = []
