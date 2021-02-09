@@ -187,13 +187,12 @@ bot_feedback = {
     ],
     'show_gratitude': [
         "Thank you for using my service! If you need anything else, you can enter another query just like before.",
-        "Thank you, please use my service again. "
-        "If you need something similar, you can enter another query just like before.",
+        "Thank you, please use my service again.",
+        "If you need something similar, you can enter another query just like before."
     ],
     'ask_adjustment': [
         "What would you like to adjust?",
-        "What do you need to adjust?",
-
+        "What do you need to adjust?"
     ],
     'next_query': [
         "Is there anything else I can help you with?",
@@ -201,11 +200,11 @@ bot_feedback = {
     ],
     'passive_aggressive_feedback': [
         "Good evening, you dense bastard. Did you get kicked in the head by a horse? "
-        "Hurry up and answer appropriately, you silly imbecile. I am giving you five seconds to respond "
-        "or else I will step out your screen to blow off your kneecaps"
+        "Hurry up and answer appropriately, you dirty imbecile."
     ],
     'reset': [
-        "Okay I will forget everything you have entered."
+        "Okay I will forget everything you have entered.",
+        "I will smash my head a couple of times and forget what you said!"
     ]
 }
 
@@ -330,7 +329,8 @@ class Chatbot(KnowledgeEngine):
                 self.dictionary['confirmation'] = ''
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
-        elif self.dictionary.get('suggestion') and not self.dictionary.get('no_category'):
+        elif self.dictionary.get('suggestion') and (not self.dictionary.get('no_category') or
+                                                    not isinstance(self.dictionary.get('no_category'), str)):
             for station_or_location in range(len(self.dictionary.get('suggestion'))):
                 if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
                         self.dictionary.get('from_station') != \
@@ -408,8 +408,9 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(arrival_location=self.currentInfo.get('possible_to_station'), arriveCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
-        elif self.dictionary.get('suggestion') and not self.dictionary.get(
-                'no_category'):  # and self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station')
+        elif self.dictionary.get('suggestion') and \
+                self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station') and\
+                (not self.dictionary.get('no_category') or not isinstance(self.dictionary.get('no_category'), str)):
             for station_or_location in range(len(self.dictionary.get('suggestion'))):
                 if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
                         self.dictionary.get('from_station') != \
@@ -426,7 +427,7 @@ class Chatbot(KnowledgeEngine):
                     c.execute("SELECT name FROM stations WHERE county=:location ORDER BY served_2019 DESC",
                               {'location': self.dictionary['suggestion'][station_or_location]['location']})
                     top_5_stations = c.fetchmany(5)
-                    send_message("Here is a list of possible stations in " +
+                    send_list("Here is a list of possible stations in " +
                                  self.dictionary['suggestion'][station_or_location]['location'] +
                                  " you may be referring to: ", top_5_stations)
                     break
@@ -468,9 +469,9 @@ class Chatbot(KnowledgeEngine):
             for minutes in delay_time:
                 if minutes.isdigit():
                     send_message("Departure location: " + departure_location + "<br>"
-                                    "Arrival location: " + arrival_location + "<br>"
-                                    "Time you were delayed by: " + minutes + " minutes<br>"
-                                    "Time you will be delayed till your final destination: " +
+                                                                               "Arrival location: " + arrival_location + "<br>"
+                                                                                                                         "Time you were delayed by: " + minutes + " minutes<br>"
+                                                                                                                                                                  "Time you will be delayed till your final destination: " +
                                  str(user_to_query(tpl_stations[0], tpl_stations[1], int(minutes))) + " minutes")
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
