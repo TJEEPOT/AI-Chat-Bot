@@ -245,8 +245,6 @@ class Chatbot(KnowledgeEngine):
         if 'intent' in self.dictionary and self.dictionary.get('intent') != '':
             self.currentInfo['intent'] = self.dictionary.get('intent')
             self.declare(Fact(queryType=self.dictionary.get('intent')))
-        elif self.dictionary.get('sanitized_message') == 'play me system blower by death grips':
-            send_message(bot_feedback['play_system_blower'][0])
         else:
             if self.dictionary.get('includes_greeting'):
                 send_message(random.choice(bot_feedback['greeting']))
@@ -351,7 +349,6 @@ class Chatbot(KnowledgeEngine):
                         self.currentInfo['to_station'] = self.dictionary.get('to_station')
                         self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
                     break
-            # send_message(random.choice(bot_feedback['ask_from_location']))
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
             engine.reset()
@@ -405,8 +402,7 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(arrival_location=self.currentInfo.get('possible_to_station'), arriveCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
-        elif self.dictionary.get('suggestion') and \
-                self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station') and\
+        elif self.dictionary.get('suggestion') and\
                 (not self.dictionary.get('no_category') or not isinstance(self.dictionary.get('no_category'), str)):
             for station_or_location in range(len(self.dictionary.get('suggestion'))):
                 if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
