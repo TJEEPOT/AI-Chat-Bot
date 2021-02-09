@@ -117,6 +117,7 @@ function submit(){
  */
 function readMessage(message){
         if ('speechSynthesis' in window){
+            message = filterLinks(message);
             let speechMessage = new SpeechSynthesisUtterance(message);
             speechMessage.voice = chosenVoice;
             speechSynthesis.speak(speechMessage);
@@ -127,6 +128,15 @@ function readMessage(message){
 
 
 
+}
+
+function filterLinks(message){      // needs changing depending how the ticket is passed to interface
+    // const regex = /(<([^>]+)>)/gi
+    // message = message.replace(regex,"");
+    // console.log(message)
+    const regex = /(http|https)([\S]+)/;
+    console.log(message.replace(regex, 'here.'));
+    return message
 }
 
 /**
@@ -176,6 +186,3 @@ function sendAudio(audio){
             });
 }
 
-addMessage("Hello! Let me know what I can help you with.", "bot-message", botName);
-addMessage("For testing, try giving me a message in the following format: CRS1, CRS2, date, time. e.g.: NRW, LST, " +
-    "2021/01/29, 16:30", "bot-message", botName);
