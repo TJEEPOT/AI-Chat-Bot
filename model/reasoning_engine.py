@@ -196,7 +196,7 @@ bot_feedback = {
     ],
     'next_query': [
         "Is there anything else I can help you with?",
-        "What else can I help you with?"
+        "Do you still need any help?"
     ],
     'passive_aggressive_feedback': [
         "Good evening, you dense bastard. Did you get kicked in the head by a horse? "
