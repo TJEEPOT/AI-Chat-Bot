@@ -698,7 +698,7 @@ class Chatbot(KnowledgeEngine):
                                      + "<br>Time outward: " + str(time_out)
                                      + "<br>Time return: " + str(time_ret)
                                      + "<br>URL: " + "<a href=" + str(url)
-                                     + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
+                                     + ' target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
                     else:
                         cost, time, url = single_fare(departCRS, arriveCRS,
                                                       str(departure_date).replace('-', '/'),
@@ -707,7 +707,7 @@ class Chatbot(KnowledgeEngine):
                                      + "<br>Total cost: " + str(cost)
                                      + "<br>Time: " + str(time)
                                      + "<br>URL: " + "<a href=" + str(url)
-                                     + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
+                                     + ' target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
                     self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to next query
                     self.dictionary['confirmation'] = ''
                 except ValueError as e:
