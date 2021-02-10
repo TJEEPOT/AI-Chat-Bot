@@ -46,10 +46,14 @@ document.getElementById("message-input-box").addEventListener('keyup', function 
 
 if ('speechSynthesis' in window){
     voiceList = speechSynthesis.getVoices();
+    console.log(voiceList)
     window.speechSynthesis.onvoiceschanged=()=>{
         voiceList = speechSynthesis.getVoices();
-        console.log(voiceList)
-        chosenVoice = voiceList[4];     // not sure how to avoid this
+        for (voice in voiceList){
+            if (voiceList[voice]['voiceURI'] == "Google UK English Female"){
+                 chosenVoice = voiceList[voice]
+            }
+        }
     }
 }
 
@@ -132,7 +136,6 @@ function readMessage(message){
         if ('speechSynthesis' in window){
             speechSynthesis.cancel()
             message = filterMessage(message);
-            console.log(message)
             let speechMessage = new SpeechSynthesisUtterance(message);
             speechMessage.voice = chosenVoice;
             speechSynthesis.speak(speechMessage);
