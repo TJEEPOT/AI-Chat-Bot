@@ -4,7 +4,7 @@ var useTextToSpeech = Boolean(false);
 var chosenVoice = null; // set on load to avoid problems with async function
 var serverIp = "http://127.0.0.1:5000"
 var socket = io.connect(serverIp)
-
+var voiceList = speechSynthesis.getVoices();
 
 
 
@@ -17,6 +17,7 @@ socket.on('message', function(msg){
 socket.on('list', function (msg){
     var listId = Date.now()
     addMessage(msg.passed_message,"bot-message",botName,listId)
+    var messageStringForSpeech = msg.passed_message
     msg.passed_list.forEach((value)=>{
         document.getElementById(listId).insertAdjacentHTML('beforeend', '<br>');
         var button = document.createElement('button')
@@ -26,11 +27,15 @@ socket.on('list', function (msg){
             inputBox.value = button.innerHTML
             submit()
         })
+
+        messageStringForSpeech = messageStringForSpeech + ". " + value
         button.innerHTML = value
         document.getElementById(listId).appendChild(button)
     })
     document.getElementById(listId).scrollIntoView({block:"start", behavior: "smooth"})
+        if (useTextToSpeech){readMessage(messageStringForSpeech)}
 })
+
 
 document.getElementById("message-input-box").addEventListener('keyup', function (e){
     if (e.code === 'Enter'){
@@ -39,18 +44,20 @@ document.getElementById("message-input-box").addEventListener('keyup', function 
     }
 })
 
-// window.speechSynthesis.onvoiceschanged=()=>{
-//     let voiceList = speechSynthesis.getVoices();
-//     console.log(voiceList)
-//     chosenVoice = voiceList[4];     // not sure how to avoid this
-// }
+
+window.speechSynthesis.onvoiceschanged=()=>{
+    voiceList = speechSynthesis.getVoices();
+    console.log(voiceList)
+    chosenVoice = voiceList[4];     // not sure how to avoid this
+}
 
 
 window.addEventListener('beforeunload', function (e) {
     socket.disconnect()
 });
-window.addEventListener('DOMContentLoaded', ()=>{
 
+
+window.addEventListener('DOMContentLoaded', ()=>{
     navigator.mediaDevices.getUserMedia({audio: true}).then(async function(stream) {
     let rtcRecorder = RecordRTC(stream, {
         type: 'audio', mimeType: 'audio/wav', recorderType: RecordRTC.StereoAudioRecorder
@@ -120,11 +127,9 @@ function submit(){
  */
 function readMessage(message){
         if ('speechSynthesis' in window){
-            message = filterLinks(message);
+            speechSynthesis.cancel()
+            message = filterMessage(message);
             console.log(message)
-            let voiceList = speechSynthesis.getVoices();
-            console.log(voiceList)
-            chosenVoice = voiceList[4];     // not sure how to avoid this
             let speechMessage = new SpeechSynthesisUtterance(message);
             speechMessage.voice = chosenVoice;
             speechSynthesis.speak(speechMessage);
@@ -137,12 +142,11 @@ function readMessage(message){
 
 }
 
-function filterLinks(message){      // needs changing depending how the ticket is passed to interface
-    // const regex = /(<([^>]+)>)/gi
-    // message = message.replace(regex,"");
-    // console.log(message)
-    const regex = /(http|https)([\S]+)/;
-    console.log(message.replace(regex, 'here.'));
+function filterMessage(message){      // needs changing depending how the ticket is passed to interface
+    const regexHtml = /\<.*?\>/g;
+    message = message.toString().replace(regexHtml,"");
+    const regexLinks = /(http|https)([\S]+)/;
+    console.log(message.replace(regexLinks, 'here.'));
     return message
 }
 
