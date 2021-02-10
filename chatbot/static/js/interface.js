@@ -4,7 +4,7 @@ var useTextToSpeech = Boolean(false);
 var chosenVoice = null; // set on load to avoid problems with async function
 var serverIp = "http://127.0.0.1:5000"
 var socket = io.connect(serverIp)
-var voiceList = speechSynthesis.getVoices();
+var voiceList
 
 
 
@@ -44,12 +44,15 @@ document.getElementById("message-input-box").addEventListener('keyup', function 
     }
 })
 
-
-window.speechSynthesis.onvoiceschanged=()=>{
+if ('speechSynthesis' in window){
     voiceList = speechSynthesis.getVoices();
-    console.log(voiceList)
-    chosenVoice = voiceList[4];     // not sure how to avoid this
+    window.speechSynthesis.onvoiceschanged=()=>{
+        voiceList = speechSynthesis.getVoices();
+        console.log(voiceList)
+        chosenVoice = voiceList[4];     // not sure how to avoid this
+    }
 }
+
 
 
 window.addEventListener('beforeunload', function (e) {
