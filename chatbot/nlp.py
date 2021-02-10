@@ -179,16 +179,16 @@ def parse_user_input(user_input):
         midnight_vars = ['midnight', '12am', '00:00']
         midnight_requested = False
         midnight_time = datetime.time(0, 0)
-        input_string = user_input
+        input_string = user_input.lower()
         for token in doc:
             if token.text.lower in midnight_vars:
                 midnight_requested = True
             if token.text.lower() == "today":
                 today_date = datetime.datetime.today().date()
-                input_string = input_string.replace("today", today_date.strftime('%d/%m/%Y'))
+                input_string = input_string.replace(token.text, today_date.strftime('%d/%m/%Y'))
             elif token.text.lower() == "tomorrow":
                 date_tomorrow = (datetime.datetime.today() + timedelta(1)).date()
-                input_string = input_string.replace("tomorrow", date_tomorrow.strftime('%d/%m/%Y'))
+                input_string = input_string.replace(token.text, date_tomorrow.strftime('%d/%m/%Y'))
 
         date_matches = datefinder.find_dates(input_string)
         for dateMatch in date_matches:
