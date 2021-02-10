@@ -686,29 +686,34 @@ class Chatbot(KnowledgeEngine):
         if 'confirmation' in self.dictionary and self.dictionary.get('confirmation') != '':
             self.currentInfo['correct_booking'] = self.dictionary.get('confirmation')
             if self.dictionary.get('confirmation'):  # if confirmation is correct
-                if return_or_not:  # is a return ticket
-                    cost, time_out, time_ret, url = return_fare(departCRS, arriveCRS,
-                                                                str(departure_date).replace('-', '/'),
-                                                                leaving_time.strftime("%H:%M"),
-                                                                str(return_date).replace('-', '/'),
-                                                                return_time.strftime("%H:%M"))
-                    send_message(random.choice(bot_feedback['found_return_ticket'])
-                                 + "<br>Total cost: " + str(cost)
-                                 + "<br>Time outward: " + str(time_out)
-                                 + "<br>Time return: " + str(time_ret)
-                                 + "<br>URL: " + "<a href=" + str(url)
-                                 + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
-                else:
-                    cost, time, url = single_fare(departCRS, arriveCRS,
-                                                  str(departure_date).replace('-', '/'),
-                                                  leaving_time.strftime("%H:%M"))
-                    send_message(random.choice(bot_feedback['found_single_ticket'])
-                                 + "<br>Total cost: " + str(cost)
-                                 + "<br>Time: " + str(time)
-                                 + "<br>URL: " + "<a href=" + str(url)
-                                 + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
-                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to next query
-                self.dictionary['confirmation'] = ''
+                try:  # look for errors coming back
+                    if return_or_not:  # is a return ticket
+                        cost, time_out, time_ret, url = return_fare(departCRS, arriveCRS,
+                                                                    str(departure_date).replace('-', '/'),
+                                                                    leaving_time.strftime("%H:%M"),
+                                                                    str(return_date).replace('-', '/'),
+                                                                    return_time.strftime("%H:%M"))
+                        send_message(random.choice(bot_feedback['found_return_ticket'])
+                                     + "<br>Total cost: " + str(cost)
+                                     + "<br>Time outward: " + str(time_out)
+                                     + "<br>Time return: " + str(time_ret)
+                                     + "<br>URL: " + "<a href=" + str(url)
+                                     + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
+                    else:
+                        cost, time, url = single_fare(departCRS, arriveCRS,
+                                                      str(departure_date).replace('-', '/'),
+                                                      leaving_time.strftime("%H:%M"))
+                        send_message(random.choice(bot_feedback['found_single_ticket'])
+                                     + "<br>Total cost: " + str(cost)
+                                     + "<br>Time: " + str(time)
+                                     + "<br>URL: " + "<a href=" + str(url)
+                                     + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
+                    self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to next query
+                    self.dictionary['confirmation'] = ''
+                except ValueError as e:
+                    send_message(str(e))
+                except NotImplementedError as e:
+                    send_message(str(e))
             else:
                 self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to ask adjustment
         elif self.dictionary.get('reset'):
