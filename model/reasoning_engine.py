@@ -300,8 +300,8 @@ class Chatbot(KnowledgeEngine):
             self.declare(Fact(departure_location=self.dictionary.get('from_station'),
                               departCRS=self.dictionary.get('from_crs')))
         elif 'from_station' not in self.currentInfo and self.dictionary.get('no_category') and \
-                isinstance(self.dictionary.get('no_category')[0], str): # checks if the from and to stations are
-            conn = sqlite3.connect(r'..\data\db.sqlite')              # present in the dictionary given through the NLP
+                isinstance(self.dictionary.get('no_category')[0], str):  # checks if the from and to stations are
+            conn = sqlite3.connect(r'..\data\db.sqlite')  # present in the dictionary given through the NLP
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
                       {'location': self.dictionary.get('no_category')[0]})
@@ -312,7 +312,7 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(departure_location=self.dictionary.get('no_category')[0], departCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
-        elif self.dictionary.get('confirmation'):   # confirmation if the suggest station is correct
+        elif self.dictionary.get('confirmation'):  # confirmation if the suggest station is correct
             conn = sqlite3.connect(r'..\data\db.sqlite')
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
@@ -374,7 +374,7 @@ class Chatbot(KnowledgeEngine):
     @Rule(Fact(queryType=L('ticket') | L('delay')),
           NOT(Fact(arrival_location=W())),
           salience=46)
-    def set_arrival_or_time(self):      # sets arrival before arrival gets deleted
+    def set_arrival_or_time(self):  # sets arrival before arrival gets deleted
         if self.dictionary.get('to_station') != '':
             self.currentInfo['to_station'] = self.dictionary.get('to_station')
             self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
@@ -435,8 +435,8 @@ class Chatbot(KnowledgeEngine):
                               {'location': self.dictionary['suggestion'][station_or_location]['location']})
                     top_5_stations = c.fetchmany(5)
                     send_list("Here is a list of possible stations in " +
-                                 self.dictionary['suggestion'][station_or_location]['location'] +
-                                 " you may be referring to: ", top_5_stations)
+                              self.dictionary['suggestion'][station_or_location]['location'] +
+                              " you may be referring to: ", top_5_stations)
                     break
                 elif count == len(self.dictionary.get('suggestion')):
                     send_message(random.choice(bot_feedback['ask_to_location']))
@@ -475,12 +475,16 @@ class Chatbot(KnowledgeEngine):
             delay_time = self.dictionary.get('raw_message').split()
             for minutes in delay_time:
                 if minutes.isdigit():
-                    send_message("Departure location: " + departure_location + "<br>"
-                                    "Arrival location: " + arrival_location + "<br>"
-                                    "Time you were delayed by: " + minutes + " minutes<br>"
-                                    "Time you will be delayed till your final destination: " +
-                                 str(user_to_query(tpl_stations[0], tpl_stations[1], int(minutes))) + " minutes")
-                    refresh_user_knowledge()
+                    try:
+                        delay = user_to_query(tpl_stations[0], tpl_stations[1], int(minutes))
+                        send_message("Departure location: " + departure_location + "<br>" +
+                                     "Arrival location: " + arrival_location + "<br>" +
+                                     "Time you were delayed by: " + minutes + " minutes<br>" +
+                                     "Time you will be delayed till your final destination: " + str(delay) + " minutes")
+                    except ValueError:
+                        send_message("Sorry, at least one of those stations were not found on the line between "
+                                     "Norwich and London Liverpool Street.")
+            refresh_user_knowledge()
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
             engine.reset()

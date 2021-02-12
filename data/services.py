@@ -147,8 +147,7 @@ class Network:
         source_station = self.get_station(source)
         destination_station = self.get_station(destination)
         if source_station is None or destination_station is None:
-            raise ValueError("Station {} or {} does not exist.".format(source, destination))
-
+            raise ValueError("Given stations are not found on this train network")
         path  = []
         queue = [[source_station]]
         while queue:

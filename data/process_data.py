@@ -177,10 +177,12 @@ def user_to_query(source, destination, delay):
 
     :rtype: int
     :return: the amount of minutes the user will be delayed once they get to their final destination
+
+    :raises ValueError: if stations given are not on this network
     """
     now     = datetime.now()
     network = services.get_network("ga_intercity")
-    path    = network.find_path(source, destination)
+    path = network.find_path(source, destination)
     path.append(path[-1])
 
     train_data = []
