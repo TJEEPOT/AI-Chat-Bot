@@ -811,19 +811,19 @@ class Chatbot(KnowledgeEngine):
                     break
         else:
             if self.dictionary.get('confirmation') != '':
-                no_return = "To change your ticket information, please choose what to adjust:"
+                change = "To change your ticket information, please choose what to adjust:"
                 list_no_return = ["Departure location",
                                   "Arrival location",
                                   "Departure date",
                                   "Departure time",
                                   "Change to single/return"]
                 if return_or_not:
-                    returning = no_return
                     list_returning = ["Return date",
                                       "Return time"]
-                    send_list(returning, list_returning)  # random.choice(bot_feedback['ask_adjustment'])
+                    list_no_return.extend(list_returning)
+                    send_list(change, list_no_return)  # random.choice(bot_feedback['ask_adjustment'])
                 else:
-                    send_list(no_return, list_no_return)
+                    send_list(change, list_no_return)
             else:
                 send_message(random.choice(bot_feedback['no_answer']))
 
