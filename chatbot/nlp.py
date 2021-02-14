@@ -180,6 +180,7 @@ def parse_user_input(user_input):
         midnight_requested = False
         midnight_time = datetime.time(0, 0)
         input_string = user_input.lower()
+
         for token in doc:
             if token.text.lower in midnight_vars:
                 midnight_requested = True
@@ -193,6 +194,7 @@ def parse_user_input(user_input):
         date_matches = datefinder.find_dates(input_string)
         for dateMatch in date_matches:
             found_dates.append(dateMatch)
+            print(dateMatch)
         number_of_dates = len(found_dates)
         outward_date = ""
         outward_time = ""

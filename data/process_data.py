@@ -164,7 +164,7 @@ def __read_hsp_from_csv(file, valid_tpl):
     return data
 
 
-def __read_weather_data():  # TBA one day.
+def __read_weather_data():  # TBA.
     pass
 
 
@@ -193,7 +193,7 @@ def user_to_query(source, destination, delay):
         train_data.append(processed_entry)
 
     total_delay = int(delay)
-    # Put data into the model here
+
     for train in train_data:
         total_delay += model.use_model(train, total_delay, network)
 
