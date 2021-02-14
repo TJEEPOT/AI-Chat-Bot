@@ -68,6 +68,7 @@ def send_message(bot_response):
 def send_list(message_to_send, list_to_send):
     emit('list', ({"passed_message": message_to_send, "passed_list": list_to_send}))
 
+
 @socketio.on('connect')
 def user_connected():
     # do stuff here if we want a greeting message
@@ -84,11 +85,13 @@ def user_connected():
     greeting_message = random.choice(bot_feedback['greeting'])  # plug in to random responses
     send(greeting_message)
 
+
 @socketio.on('disconnect')
 def user_disconnected():
     from model.reasoning_engine import refresh_user_knowledge
     print("hello")
     refresh_user_knowledge()
+
 
 @socketio.on('message')
 def receive_message(user_input):
@@ -100,5 +103,9 @@ def receive_message(user_input):
     process_user_input(nlp_response)
 
 
-if __name__ == "__main__":
+def run():
     socketio.run(app)
+
+
+if __name__ == "__main__":
+    run()
