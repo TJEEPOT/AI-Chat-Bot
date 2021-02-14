@@ -17,15 +17,13 @@ import random
 from flask import Flask, render_template, request, jsonify, make_response
 import speech_recognition as sr
 from chatbot.nlp import parse_user_input
-from flask_socketio import SocketIO, send
+from flask_socketio import SocketIO, send, emit
 
-
-__author__     = "Sam Humphreys"
-__credits__    = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
+__author__ = "Sam Humphreys"
+__credits__ = ["Martin Siddons", "Steven Diep", "Sam Humphreys"]
 __maintainer__ = "Sam Humphreys"
-__email__      = "s.humphreys@uea.ac.uk"
-__status__     = "Development"  # "Development" "Prototype" "Production"
-
+__email__ = "s.humphreys@uea.ac.uk"
+__status__ = "Development"  # "Development" "Prototype" "Production"
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "iamasecretkey"  # I'll pretend I didn't see this.
@@ -67,21 +65,30 @@ def send_message(bot_response):
     send(bot_response)
 
 
+def send_list(message_to_send, list_to_send):
+    emit('list', ({"passed_message": message_to_send, "passed_list": list_to_send}))
+
 @socketio.on('connect')
 def user_connected():
     # do stuff here if we want a greeting message
     bot_feedback = {
         'greeting': [
-            "Hello!",
-            "Welcome!",
+            "Hello! How may I help you today?",
+            "Welcome! Please ask me about tickets, help, or delays.",
             "Hello, how may I help you today?",
-            "Hi!",
-            "Hey!"
+            "Hi! Please ask me about tickets, help, or delays.",
+            "Hey! I currently offer assistance in booking tickets, "
+            "providing help information, or estimate your train delay."
         ]
     }
-    greeting_message = random.choice(bot_feedback['greeting'])          # plug in to random responses
+    greeting_message = random.choice(bot_feedback['greeting'])  # plug in to random responses
     send(greeting_message)
 
+@socketio.on('disconnect')
+def user_disconnected():
+    from model.reasoning_engine import refresh_user_knowledge
+    print("hello")
+    refresh_user_knowledge()
 
 @socketio.on('message')
 def receive_message(user_input):

@@ -4,7 +4,7 @@ var useTextToSpeech = Boolean(false);
 var chosenVoice = null; // set on load to avoid problems with async function
 var serverIp = "http://127.0.0.1:5000"
 var socket = io.connect(serverIp)
-
+var voiceList
 
 
 
@@ -14,6 +14,28 @@ socket.on('message', function(msg){
 })
 
 
+socket.on('list', function (msg){
+    var listId = Date.now()
+    addMessage(msg.passed_message,"bot-message",botName,listId)
+    var messageStringForSpeech = msg.passed_message
+    msg.passed_list.forEach((value)=>{
+        document.getElementById(listId).insertAdjacentHTML('beforeend', '<br>');
+        var button = document.createElement('button')
+        button.setAttribute('class','list-button')
+        button.addEventListener("click", ()=>{
+            inputBox = document.getElementById("message-input-box")
+            inputBox.value = button.innerHTML
+            submit()
+        })
+
+        messageStringForSpeech = messageStringForSpeech + ". " + value
+        button.innerHTML = value
+        document.getElementById(listId).appendChild(button)
+    })
+    document.getElementById(listId).scrollIntoView({block:"start", behavior: "smooth"})
+        if (useTextToSpeech){readMessage(messageStringForSpeech)}
+})
+
 
 document.getElementById("message-input-box").addEventListener('keyup', function (e){
     if (e.code === 'Enter'){
@@ -22,13 +44,27 @@ document.getElementById("message-input-box").addEventListener('keyup', function 
     }
 })
 
-window.speechSynthesis.onvoiceschanged=()=>{
-    let voiceList = speechSynthesis.getVoices();
-    chosenVoice = voiceList[4];     // not sure how to avoid this
+if ('speechSynthesis' in window){
+    voiceList = speechSynthesis.getVoices();
+    console.log(voiceList)
+    window.speechSynthesis.onvoiceschanged=()=>{
+        voiceList = speechSynthesis.getVoices();
+        for (voice in voiceList){
+            if (voiceList[voice]['voiceURI'] == "Google UK English Female"){
+                 chosenVoice = voiceList[voice]
+            }
+        }
+    }
 }
 
-window.addEventListener('DOMContentLoaded', ()=>{
 
+
+window.addEventListener('beforeunload', function (e) {
+    socket.disconnect()
+});
+
+
+window.addEventListener('DOMContentLoaded', ()=>{
     navigator.mediaDevices.getUserMedia({audio: true}).then(async function(stream) {
     let rtcRecorder = RecordRTC(stream, {
         type: 'audio', mimeType: 'audio/wav', recorderType: RecordRTC.StereoAudioRecorder
@@ -80,26 +116,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
  * Retrieves user input-box and gets the response from the chatbot. Adds both to the chat window using addMessage
  *
  */
-// function submit(){
-//             inputBox = document.getElementById("message-input-box");
-//             userMessage = inputBox.value
-//             if (userMessage !== ""){
-//             addMessage(inputBox.value, "human-message", "You")
-//             response = fetch('get_reply', {
-//               method: 'post',
-//               headers: {
-//                 'Content-Type': 'application/json'
-//               },
-//               body: JSON.stringify(userMessage)
-//             }).then(function (response){
-//                 response.json().then(function (data){
-//                     addMessage(data.message, "bot-message", botName);
-//                     if (useTextToSpeech){readMessage(data.message);};
-//                 })
-//             });
-//             inputBox.value = "";
-//             }
-// }
 function submit(){
              inputBox = document.getElementById("message-input-box");
              userMessage = inputBox.value
@@ -108,8 +124,7 @@ function submit(){
                  socket.send(userMessage);
              }
 
-              inputBox.value = "";
-}
+
 /**
  *
  * Reads a message using text-to-speech
@@ -118,7 +133,8 @@ function submit(){
  */
 function readMessage(message){
         if ('speechSynthesis' in window){
-            message = filterLinks(message);
+            speechSynthesis.cancel()
+            message = filterMessage(message);
             let speechMessage = new SpeechSynthesisUtterance(message);
             speechMessage.voice = chosenVoice;
             speechSynthesis.speak(speechMessage);
@@ -131,12 +147,11 @@ function readMessage(message){
 
 }
 
-function filterLinks(message){      // needs changing depending how the ticket is passed to interface
-    // const regex = /(<([^>]+)>)/gi
-    // message = message.replace(regex,"");
-    // console.log(message)
-    const regex = /(http|https)([\S]+)/;
-    console.log(message.replace(regex, 'here.'));
+function filterMessage(message){      // needs changing depending how the ticket is passed to interface
+    const regexHtml = /\<.*?\>/g;
+    message = message.toString().replace(regexHtml,"");
+    const regexLinks = /(http|https)([\S]+)/;
+    console.log(message.replace(regexLinks, 'here.'));
     return message
 }
 
@@ -148,7 +163,7 @@ function filterLinks(message){      // needs changing depending how the ticket i
  * @param userType {string} type of user sending the message (valid inputs are "human-message" or "bot-message")
  * @param name {string} the name of the bot or user
  */
-function addMessage(message, userType, name){
+function addMessage(message, userType, name, divId = Date.now()){
     var date = new Date()
     const baseHTML = ` <div class="${userType}">
                 <div class="main-message-wrapper">
@@ -156,15 +171,14 @@ function addMessage(message, userType, name){
                         <div class="user-message-name">${name}</div>
                         <div class="user-message-time">${("0" + date.getHours()).slice(-2)}:${("0" + date.getMinutes()).slice(-2)}</div>
                     </div>
-                    <div class="user-message-content">
+                    <div class="user-message-content" id=${divId}>
                         ${message}
                     </div>
                 </div>
             </div>
             `;
     document.getElementById("chat-box").insertAdjacentHTML('beforeend', baseHTML);
-    document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight
-    document.getElementById("message-input-box").scrollIntoView({block:"start", behavior: "smooth"})
+    document.getElementById(divId).scrollIntoView({block:"start", behavior: "smooth"})
 }
 
 /**

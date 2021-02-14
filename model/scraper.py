@@ -52,6 +52,10 @@ def single_fare(dep, arr, date, time):
     __validate_result(title=str(soup.find("title")))  # validate if the result is not an error page
     cheap_label = soup.find(class_="cheapest")  # this is the class with the cheapest price
 
+    # Check if cheap_label contains details, if not report all trains are cancelled
+    if cheap_label is None:
+        raise ValueError("This journey is not available at the given date and time.")
+
     # Pull out the fare from html and isolate its value with regex
     s = str(cheap_label.parent.find(class_="opsingle").contents[2])
     fare = re.search("£.*", s).group()
@@ -95,7 +99,13 @@ def return_fare(dep, arr, dep_date, dep_time, ret_date, ret_time):
 
     # loop over cheap_labels to find journey times and isolate with regex
     res_time = []
-    for label in soup.find_all(class_="cheapest"):  # this is the class with the cheapest prices
+    cheap_label = soup.find_all(class_="cheapest")
+
+    # Check if cheap_label contains details, if not report train is cancelled
+    if cheap_label is None or len(cheap_label) < 2:
+        raise ValueError("This journey is not available at the given date and time.")
+
+    for label in cheap_label:  # this is the class with the cheapest prices
         s = str(label.parent.find(class_="journey-breakdown").contents[1])
         res_time.append(re.search("[0-2][0-9]:[0-5][0-9]", s).group())
 

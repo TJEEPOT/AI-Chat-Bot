@@ -22,7 +22,7 @@ import sqlite3
 import datetime
 from experta import *
 import random
-from chatbot.presenter import send_message
+from chatbot.presenter import send_message, send_list
 from model.scraper import single_fare, return_fare
 from data.process_data import user_to_query
 
@@ -32,22 +32,21 @@ __maintainer__ = "Steven Diep"
 __email__ = "steven_diep@hotmail.co.uk"
 __status__ = "Prototype"  # "Development" "Prototype" "Production"
 
-# TODO integrate dictionary bot_feedback
-
 now = datetime.datetime.now()
 current_hour_minute = datetime.time(now.hour, now.minute)
 
 all_current_info = ['intent', 'from_station', 'to_station', 'from_crs', 'to_crs', 'outward_date',
-                                'outward_time', 'return_date', 'return_time', 'confirmation_return',
-                                'correct_booking']
+                    'outward_time', 'return_date', 'return_time', 'confirmation_return',
+                    'correct_booking']
 
 bot_feedback = {
     'greeting': [
-        "Hello!",
-        "Welcome!",
+        "Hello! How may I help you today?",
+        "Welcome! Please ask me about tickets, help, or delays.",
         "Hello, how may I help you today?",
-        "Hi!",
-        "Hey!"
+        "Hi! Please ask me about tickets, help, or delays.",
+        "Hey! I currently offer assistance in booking tickets, "
+        "providing help information, or estimate your train delay."
     ],
     'query': [
         "I can assist you with booking tickets, provide general information regarding train services "
@@ -56,10 +55,12 @@ bot_feedback = {
         "Would you like to book a ticket, see potential delays, or do you require general help?"
     ],
     'ask_help': [
-        "What would you like help with?",
-        "How can I help you?",
-        "How may I help you?",
-        "Please enter your query so I can assist you."
+        "What would you like help with? I can provide information regarding cancelling, "
+        "how to book a ticket, and changing tickets.",
+        "How can I help you today? The options I can provide you are cancellation, booking, changing tickets.",
+        "How may I help you? I can answer questions related to cancellation, booking, and changing tickets",
+        "Please enter either cancellation, booking, or changing tickets so I can assist you.",
+        "I can help you with cancellation, ticket, and changing tickets"
     ],
     'ask_from_location': [
         "Where are you travelling from?",
@@ -79,8 +80,7 @@ bot_feedback = {
         "Where are you travelling to?",
         "Please tell me the station you are arriving at.",
         "What station are you going to?",
-        "What station are you travelling to?",
-        "Where is the station you are arriving at?"
+        "What station are you travelling to?"
     ],
     'show_wrong_station': [
         "Please enter a valid station.",
@@ -185,26 +185,21 @@ bot_feedback = {
         "Sorry we could not find your ticket"
     ],
     'show_gratitude': [
-        "Thank you for using my service!",
-        "Thank you, please use my service again",
-
+        "Thank you for using my service! If you need anything else, you can enter another query just like before.",
+        "Thank you, please use my service again.",
+        "If you need something similar, you can enter another query just like before."
     ],
     'ask_adjustment': [
         "What would you like to adjust?",
-        "What do you need to adjust?",
-
+        "What do you need to adjust?"
     ],
     'next_query': [
         "Is there anything else I can help you with?",
-        "What else can I help you with?"
-    ],
-    'passive_aggressive_feedback': [
-        "Good evening, you dense bastard. Did you get kicked in the head by a horse? "
-        "Hurry up and answer appropriately, you silly imbecile. I am giving you five seconds to respond "
-        "or else I will step out your screen to blow off your kneecaps"
+        "Do you still need any help?"
     ],
     'reset': [
-        "Okay I will forget everything you have entered."
+        "Okay I will forget everything you have entered.",
+        "Forgetting what you just said!"
     ]
 }
 
@@ -245,7 +240,7 @@ class Chatbot(KnowledgeEngine):
 
     @Rule(Fact(action='begin'),
           NOT(Fact(queryType=W())),
-          salience=50)
+          salience=52)
     def ask_query_type(self):
         if 'intent' in self.dictionary and self.dictionary.get('intent') != '':
             self.currentInfo['intent'] = self.dictionary.get('intent')
@@ -260,7 +255,7 @@ class Chatbot(KnowledgeEngine):
                     send_message(random.choice(bot_feedback['no_answer']))
 
     @Rule(Fact(queryType=L('help') | L('cancel') | L('change')),
-          salience=48)
+          salience=50)
     def ask_help_type(self):
         if 'intent' in self.dictionary and self.dictionary.get('intent') in ['ticket', 'cancel', 'change']:
             if self.dictionary.get('intent') == 'ticket':
@@ -276,7 +271,7 @@ class Chatbot(KnowledgeEngine):
                              'and most of all provides the cheapest train ticket through user input')
             elif self.dictionary.get('intent') == 'cancel':
                 send_message("For more information on cancelling your ticket please visit: "
-                             "<a href=https://www.greateranglia.co.uk/contact-us/faqs/refunds>Link</a> ")
+                             "<a href=https://www.greateranglia.co.uk/contact-us/faqs/refunds>Link</a>")
             elif self.dictionary.get('intent') == 'change':
                 send_message("If you would like to make adjustments to your ticket please use the link provided: "
                              "<a href=https://www.greateranglia.co.uk/contact-us/faqs/tickets>Link</a>")
@@ -287,6 +282,7 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
             if self.dictionary.get('intent') == 'help':
@@ -296,15 +292,16 @@ class Chatbot(KnowledgeEngine):
 
     @Rule(Fact(queryType=L('ticket') | L('delay')),
           NOT(Fact(departure_location=W())),
-          salience=46)
+          salience=48)
     def ask_departure_station(self):
         if 'from_station' in self.dictionary and self.dictionary.get('from_station') != '':
             self.currentInfo['from_station'] = self.dictionary.get('from_station')
             self.currentInfo['from_crs'] = self.dictionary.get('from_crs')
-            self.declare(Fact(departure_location=self.dictionary.get('from_station')))
+            self.declare(Fact(departure_location=self.dictionary.get('from_station'),
+                              departCRS=self.dictionary.get('from_crs')))
         elif 'from_station' not in self.currentInfo and self.dictionary.get('no_category') and \
-                isinstance(self.dictionary.get('no_category')[0], str):
-            conn = sqlite3.connect(r'..\data\db.sqlite')
+                isinstance(self.dictionary.get('no_category')[0], str):  # checks if the from and to stations are
+            conn = sqlite3.connect(r'..\data\db.sqlite')  # present in the dictionary given through the NLP
             c = conn.cursor()
             c.execute("SELECT crs FROM stations WHERE name=:location",
                       {'location': self.dictionary.get('no_category')[0]})
@@ -315,14 +312,31 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(departure_location=self.dictionary.get('no_category')[0], departCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
-        elif self.dictionary.get('suggestion'):
+        elif self.dictionary.get('confirmation'):  # confirmation if the suggest station is correct
+            conn = sqlite3.connect(r'..\data\db.sqlite')
+            c = conn.cursor()
+            c.execute("SELECT crs FROM stations WHERE name=:location",
+                      {'location': self.currentInfo.get('possible_from_station')})
+            crs = c.fetchone()
+            if crs is not None:
+                self.currentInfo['to_station'] = self.currentInfo.get('possible_from_station')
+                self.declare(Fact(departure_location=self.currentInfo.get('possible_from_station'), departCRS=crs[0]))
+                self.dictionary['confirmation'] = ''
+            else:
+                send_message(random.choice(bot_feedback['show_wrong_station']))
+        elif self.dictionary.get('suggestion') and (not self.dictionary.get('no_category') or
+                                                    isinstance(self.dictionary.get('no_category'), str)):
+            count = 0
             for station_or_location in range(len(self.dictionary.get('suggestion'))):
+                count += 1
                 if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
                         self.dictionary.get('from_station') != \
                         self.dictionary.get('suggestion')[station_or_location]['station'] \
                         and self.dictionary.get('to_station') != \
                         self.dictionary.get('suggestion')[station_or_location]['station']:
                     send_message("Did you mean " + self.dictionary['suggestion'][station_or_location]['station'] + "?")
+                    self.currentInfo['possible_from_station'] = \
+                        self.dictionary['suggestion'][station_or_location]['station']
                     break
                 elif 'location' in self.dictionary.get('suggestion')[station_or_location]:
                     conn = sqlite3.connect(r'..\data\db.sqlite')
@@ -330,16 +344,15 @@ class Chatbot(KnowledgeEngine):
                     c.execute("SELECT name FROM stations WHERE county=:location ORDER BY served_2019 DESC",
                               {'location': self.dictionary['suggestion'][station_or_location]['location']})
                     top_5_stations = c.fetchmany(5)
-                    string = ""
-                    count = 0
-                    for list_all in top_5_stations:
-                        string += str(list_all[0])
-                        count += 1
-                        if count < len(top_5_stations):
-                            string += ", "
-                    send_message("The station you would like to depart from share similar names with the location you "
-                                 "entered, here is a list a of possible stations you may be referring to: " + string)
+                    send_list("Here is a list of possible stations in " +
+                              self.dictionary['suggestion'][station_or_location]['location'] +
+                              " you may be referring to: ", top_5_stations)
+                    if self.dictionary.get('to_station') != '':
+                        self.currentInfo['to_station'] = self.dictionary.get('to_station')
+                        self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
                     break
+                elif count == len(self.dictionary.get('suggestion')):
+                    send_message(random.choice(bot_feedback['ask_from_location']))
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
             engine.reset()
@@ -347,6 +360,7 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
             if self.dictionary.get('intent') == 'ticket':  # or self.dictionary.get('no_category')
@@ -358,6 +372,14 @@ class Chatbot(KnowledgeEngine):
                 send_message(random.choice(bot_feedback['no_answer']))
 
     @Rule(Fact(queryType=L('ticket') | L('delay')),
+          NOT(Fact(arrival_location=W())),
+          salience=46)
+    def set_arrival_or_time(self):  # sets arrival before arrival gets deleted
+        if self.dictionary.get('to_station') != '':
+            self.currentInfo['to_station'] = self.dictionary.get('to_station')
+            self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
+
+    @Rule(Fact(queryType=L('ticket') | L('delay')),
           Fact(departure_location=W()),
           NOT(Fact(arrival_location=W())),
           salience=44)
@@ -365,7 +387,8 @@ class Chatbot(KnowledgeEngine):
         if 'to_station' in self.dictionary and self.dictionary.get('to_station') != '':
             self.currentInfo['to_station'] = self.dictionary.get('to_station')
             self.currentInfo['to_crs'] = self.dictionary.get('to_crs')
-            self.declare(Fact(arrival_location=self.dictionary.get('to_station')))
+            self.declare(Fact(arrival_location=self.dictionary.get('to_station'),
+                              arriveCRS=self.dictionary.get('to_crs')))
         elif 'to_station' not in self.currentInfo and self.dictionary.get('no_category') and \
                 self.dictionary.get('no_category')[0] != self.currentInfo.get('from_station') and \
                 isinstance(self.dictionary.get('no_category')[0], str):
@@ -380,14 +403,30 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(arrival_location=self.dictionary.get('no_category')[0], arriveCRS=crs[0]))
             else:
                 send_message(random.choice(bot_feedback['show_wrong_station']))
-        elif self.dictionary.get('suggestion'):
+        elif self.dictionary.get('confirmation'):
+            conn = sqlite3.connect(r'..\data\db.sqlite')
+            c = conn.cursor()
+            c.execute("SELECT crs FROM stations WHERE name=:location",
+                      {'location': self.currentInfo.get('possible_to_station')})
+            crs = c.fetchone()
+            if crs is not None:
+                self.currentInfo['to_station'] = self.currentInfo.get('possible_to_station')
+                self.declare(Fact(arrival_location=self.currentInfo.get('possible_to_station'), arriveCRS=crs[0]))
+            else:
+                send_message(random.choice(bot_feedback['show_wrong_station']))
+        elif self.dictionary.get('suggestion') and (not self.dictionary.get('no_category') or
+                                                    isinstance(self.dictionary.get('no_category'), str)):
+            count = 0
             for station_or_location in range(len(self.dictionary.get('suggestion'))):
+                count += 1
                 if 'station' in self.dictionary.get('suggestion')[station_or_location] and \
                         self.dictionary.get('from_station') != \
                         self.dictionary.get('suggestion')[station_or_location]['station'] \
                         and self.dictionary.get('to_station') != \
                         self.dictionary.get('suggestion')[station_or_location]['station']:
                     send_message("Did you mean " + self.dictionary['suggestion'][station_or_location]['station'] + "?")
+                    self.currentInfo['possible_to_station'] = \
+                        self.dictionary['suggestion'][station_or_location]['station']
                     break
                 elif 'location' in self.dictionary.get('suggestion')[station_or_location]:
                     conn = sqlite3.connect(r'..\data\db.sqlite')
@@ -395,16 +434,12 @@ class Chatbot(KnowledgeEngine):
                     c.execute("SELECT name FROM stations WHERE county=:location ORDER BY served_2019 DESC",
                               {'location': self.dictionary['suggestion'][station_or_location]['location']})
                     top_5_stations = c.fetchmany(5)
-                    string = ""
-                    count = 0
-                    for list_all in top_5_stations:
-                        string += str(list_all[0])
-                        count += 1
-                        if count < len(top_5_stations):
-                            string += ", "
-                    send_message("The station you would like to arrive at share similar names with the location you "
-                                 "entered, here is a list a of possible stations you may be referring to: " + string)
+                    send_list("Here is a list of possible stations in " +
+                              self.dictionary['suggestion'][station_or_location]['location'] +
+                              " you may be referring to: ", top_5_stations)
                     break
+                elif count == len(self.dictionary.get('suggestion')):
+                    send_message(random.choice(bot_feedback['ask_to_location']))
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
             engine.reset()
@@ -412,15 +447,16 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
-            if self.dictionary.get('from_station') != '' or self.dictionary.get('no_category'):
+            if self.dictionary.get('from_station') != '' or self.dictionary.get('no_category') or \
+                    self.dictionary.get('confirmation') == '':
                 send_message(random.choice(bot_feedback['ask_to_location']))
             else:
                 self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['no_answer']))
 
-    # TODO wait on martin tomorrow to fix the problem
     @Rule(Fact(departure_location=MATCH.departure_location),
           Fact(arrival_location=MATCH.arrival_location),
           Fact(queryType='delay'),
@@ -439,13 +475,16 @@ class Chatbot(KnowledgeEngine):
             delay_time = self.dictionary.get('raw_message').split()
             for minutes in delay_time:
                 if minutes.isdigit():
-                    print(tpl_stations[0])
-                    print(int(minutes))
-                    print(user_to_query(tpl_stations[0], tpl_stations[1], int(minutes)))
-                    send_message("Departure location: " + departure_location + "<br>"
-                                    "Arrival location: " + arrival_location + "<br>"
-                                    "Minutes you were delayed by: " + minutes + "<br>"
-                                    "Minutes you will be delayed till your final destination: ")
+                    try:
+                        delay = user_to_query(tpl_stations[0], tpl_stations[1], int(minutes))
+                        send_message("Departure location: " + departure_location + "<br>" +
+                                     "Arrival location: " + arrival_location + "<br>" +
+                                     "Time you were delayed by: " + minutes + " minutes<br>" +
+                                     "Time you will be delayed till your final destination: " + str(delay) + " minutes")
+                    except ValueError:
+                        send_message("Sorry, at least one of those stations were not found on the line between "
+                                     "Norwich and London Liverpool Street.")
+            refresh_user_knowledge()
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
             engine.reset()
@@ -453,10 +492,11 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
             if self.dictionary.get('to_station') != '' or self.dictionary.get('no_category'):
-                send_message(random.choice(bot_feedback['ask_time_delayed']))  # TODO reset here
+                send_message(random.choice(bot_feedback['ask_time_delayed']))
             else:
                 self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['no_answer']))
@@ -468,16 +508,24 @@ class Chatbot(KnowledgeEngine):
     def ask_depart_date(self):
         if 'outward_date' in self.dictionary and self.dictionary.get('outward_date') != '':
             if datetime.date.today() <= self.dictionary.get('outward_date'):
-                self.currentInfo['outward_date'] = self.dictionary.get('outward_date')
-                self.declare(Fact(departure_date=self.dictionary.get('outward_date')))
+                if datetime.date.today() + datetime.timedelta(weeks=11) > self.dictionary.get('outward_date'):
+                    self.currentInfo['outward_date'] = self.dictionary.get('outward_date')
+                    self.declare(Fact(departure_date=self.dictionary.get('outward_date')))
+                else:
+                    send_message("Date can not be more than 11 weeks in the future. "
+                                 "Please enter a valid departure date.")
             else:
                 send_message(random.choice(bot_feedback['past_date']))
         elif 'outward_date' not in self.currentInfo and self.dictionary.get('no_category') and \
                 self.dictionary.get('no_category')[0] != self.currentInfo.get('to_station') and \
                 isinstance(self.dictionary.get('no_category')[0], datetime.date):
             if datetime.date.today() <= self.dictionary.get('no_category')[0]:
-                self.currentInfo['outward_date'] = self.dictionary.get('no_category')[0]
-                self.declare(Fact(departure_date=self.dictionary.get('no_category')[0]))
+                if datetime.date.today() + datetime.timedelta(weeks=11) > self.dictionary.get('no_category')[0]:
+                    self.currentInfo['outward_date'] = self.dictionary.get('no_category')[0]
+                    self.declare(Fact(departure_date=self.dictionary.get('no_category')[0]))
+                else:
+                    send_message("Date can not be more than 11 weeks in the future. "
+                                 "Please enter a valid departure date.")
             else:
                 send_message(random.choice(bot_feedback['past_date']))
         elif self.dictionary.get('reset'):
@@ -487,6 +535,7 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
             if 'from_station' in self.currentInfo and (
@@ -496,7 +545,7 @@ class Chatbot(KnowledgeEngine):
                 pass
             else:
                 self.dictionary.get('raw_message')
-                send_message(random.choice(bot_feedback['invalid_date']))
+                send_message(random.choice(bot_feedback['no_answer']))
 
     @Rule(Fact(departure_date=MATCH.departure_date),
           NOT(Fact(leaving_time=W())),
@@ -522,6 +571,7 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
             if self.dictionary.get('outward_date') != '' or self.dictionary.get('no_category'):
@@ -542,8 +592,12 @@ class Chatbot(KnowledgeEngine):
                 self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
                 self.declare(Fact(return_date=' '))
                 self.declare(Fact(return_time=' '))
+                self.dictionary['confirmation'] = ''
             else:
                 self.declare(Fact(return_or_not=self.dictionary.get('confirmation')))
+        elif self.dictionary.get('return_date') != '' and self.dictionary.get('return_time') != '':
+            self.currentInfo['confirmation_return'] = True
+            self.declare(Fact(return_or_not=True))
         elif self.dictionary.get('reset'):
             send_message(random.choice(bot_feedback['reset']))
             engine.reset()
@@ -551,6 +605,7 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
             if self.dictionary.get('outward_time') != '' or self.dictionary.get('no_category'):
@@ -566,14 +621,22 @@ class Chatbot(KnowledgeEngine):
     def ask_return_date(self, departure_date):
         if 'return_date' in self.dictionary and self.dictionary.get('return_date') != '':
             if departure_date <= self.dictionary.get('return_date'):
-                self.currentInfo['return_date'] = self.dictionary.get('return_date')
-                self.declare(Fact(return_date=self.dictionary.get('return_date')))
+                if datetime.date.today() + datetime.timedelta(weeks=11) > self.dictionary.get('return_date'):
+                    self.currentInfo['return_date'] = self.dictionary.get('return_date')
+                    self.declare(Fact(return_date=self.dictionary.get('return_date')))
+                else:
+                    send_message("Date can not be more than 11 weeks in the future. "
+                                 "Please enter a valid return date.")
             else:
                 send_message(random.choice(bot_feedback['past_departure_date']))
         elif 'return_date' not in self.currentInfo and self.dictionary.get('no_category'):
             if departure_date <= self.dictionary.get('no_category')[0]:
-                self.currentInfo['return_date'] = self.dictionary.get('no_category')[0]
-                self.declare(Fact(return_date=self.dictionary.get('no_category')[0]))
+                if datetime.date.today() + datetime.timedelta(weeks=11) > self.dictionary.get('no_category')[0]:
+                    self.currentInfo['return_date'] = self.dictionary.get('no_category')[0]
+                    self.declare(Fact(return_date=self.dictionary.get('no_category')[0]))
+                else:
+                    send_message("Date can not be more than 11 weeks in the future. "
+                                 "Please enter a valid return date.")
             else:
                 send_message(random.choice(bot_feedback['past_departure_date']))
         elif self.dictionary.get('reset'):
@@ -583,6 +646,7 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
             if self.dictionary.get('confirmation') != '':
@@ -617,6 +681,7 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
             if self.dictionary.get('return_date') != '' or self.dictionary.get('no_category'):
@@ -625,7 +690,7 @@ class Chatbot(KnowledgeEngine):
                 self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['invalid_time']))
 
-    '''@Rule(Fact(return_or_not=MATCH.return_or_not),
+    @Rule(Fact(return_or_not=MATCH.return_or_not),
           Fact(departure_location=MATCH.departure_location, departCRS=MATCH.departCRS),
           Fact(arrival_location=MATCH.arrival_location, arriveCRS=MATCH.arriveCRS),
           Fact(departure_date=MATCH.departure_date),
@@ -640,30 +705,36 @@ class Chatbot(KnowledgeEngine):
         if 'confirmation' in self.dictionary and self.dictionary.get('confirmation') != '':
             self.currentInfo['correct_booking'] = self.dictionary.get('confirmation')
             if self.dictionary.get('confirmation'):  # if confirmation is correct
-                if return_or_not:  # is a return ticket
-                    cost, time_out, time_ret, url = return_fare(departCRS, arriveCRS,
-                                                                str(departure_date).replace('-', '/'),
-                                                                leaving_time.strftime("%H:%M"),
-                                                                str(return_date).replace('-', '/'),
-                                                                return_time.strftime("%H:%M"))
-                    send_message(random.choice(bot_feedback['found_return_ticket'])
-                                 + "<br>Total cost: " + str(cost)
-                                 + "<br>Time outward: " + str(time_out)
-                                 + "<br>Time return: " + str(time_ret)
-                                 + "<br>URL: " + "<a href=" + str(url) + "target=_blank rel = noopener noreferrer >Link to ticket</a>")
-                else:
-                    cost, time, url = single_fare(departCRS, arriveCRS,
-                                                  str(departure_date).replace('-', '/'),
-                                                  leaving_time.strftime("%H:%M"))
-                    send_message(random.choice(bot_feedback['found_single_ticket'])
-                                 + "<br>Total cost: " + str(cost)
-                                 + "<br>Time: " + str(time)
-                                 + "<br>URL: " + "<a href=" + str(url) + ">Link to ticket</a>")
-                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to next query
-                self.dictionary['confirmation'] = ''
+                try:  # look for errors coming back
+                    if return_or_not:  # is a return ticket
+                        cost, time_out, time_ret, url = return_fare(departCRS, arriveCRS,
+                                                                    str(departure_date).replace('-', '/'),
+                                                                    leaving_time.strftime("%H:%M"),
+                                                                    str(return_date).replace('-', '/'),
+                                                                    return_time.strftime("%H:%M"))
+                        send_message(random.choice(bot_feedback['found_return_ticket'])
+                                     + "<br>Total cost: " + str(cost)
+                                     + "<br>Time outward: " + str(time_out)
+                                     + "<br>Time return: " + str(time_ret)
+                                     + "<br>URL: " + "<a href=" + str(url)
+                                     + ' target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
+                    else:
+                        cost, time, url = single_fare(departCRS, arriveCRS,
+                                                      str(departure_date).replace('-', '/'),
+                                                      leaving_time.strftime("%H:%M"))
+                        send_message(random.choice(bot_feedback['found_single_ticket'])
+                                     + "<br>Total cost: " + str(cost)
+                                     + "<br>Time: " + str(time)
+                                     + "<br>URL: " + "<a href=" + str(url)
+                                     + ' target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
+                    self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to next query
+                    self.dictionary['confirmation'] = ''
+                except ValueError as e:
+                    send_message(str(e))
+                except NotImplementedError as e:
+                    send_message(str(e))
             else:
                 self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to ask adjustment
-                self.dictionary['confirmation'] = ''
         elif self.dictionary.get('reset'):
             send_message("Okay I will forget everything you have entered.")
             engine.reset()
@@ -671,11 +742,12 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
-            if self.dictionary.get('return_time') != '' or self.dictionary.get('confirmation') != '' or \
+            if self.dictionary.get('return_time') != '' or self.dictionary.get('confirmation') == '' or \
                     self.dictionary.get('no_category'):
-                no_return = "Please confirm your booking..." \
+                no_return = "Is this information correct?" \
                             "<br>Departure datetime: " + str(departure_date) + " at " + leaving_time.strftime("%H:%M") \
                             + "<br>Departing from: " + str(departure_location) \
                             + "<br>Arriving at: " + str(arrival_location)
@@ -688,52 +760,45 @@ class Chatbot(KnowledgeEngine):
                     send_message(no_return)
             else:
                 self.dictionary.get('raw_message')
-                send_message(random.choice(bot_feedback['no_answer']))'''
+                send_message(random.choice(bot_feedback['no_answer']))
 
-    @Rule(Fact(return_or_not=MATCH.return_or_not),
-          Fact(departure_location=MATCH.departure_location, departCRS=MATCH.departCRS),
-          Fact(arrival_location=MATCH.arrival_location, arriveCRS=MATCH.arriveCRS),
-          Fact(departure_date=MATCH.departure_date),
-          Fact(leaving_time=MATCH.leaving_time),
-          Fact(return_date=MATCH.return_date),
-          Fact(return_time=MATCH.return_time),
-          NOT(Fact(correct_booking=True | False)),
-          salience=30)
-    def ask_correct_booking(self, return_or_not, departure_location, departCRS,
-                            arrival_location, arriveCRS, departure_date, leaving_time,
-                            return_date, return_time):
-        if 'correct_booking' in self.currentInfo:
-
-            self.currentInfo['correct_booking'] = self.dictionary.get('confirmation')
-            if self.currentInfo.get('correct_booking'):  # if confirmation is correct
-                if return_or_not:  # is a return ticket
-                    cost, time_out, time_ret, url = return_fare(departCRS, arriveCRS,
-                                                                str(departure_date).replace('-', '/'),
-                                                                leaving_time.strftime("%H:%M"),
-                                                                str(return_date).replace('-', '/'),
-                                                                return_time.strftime("%H:%M"))
-                    send_message(random.choice(bot_feedback['found_return_ticket'])
-                                 + "<br>Total cost: " + str(cost)
-                                 + "<br>Time outward: " + str(time_out)
-                                 + "<br>Time return: " + str(time_ret)
-                                 + "<br>URL: " + "<a href=" + str(url)
-                                 + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
-                else:
-                    cost, time, url = single_fare(departCRS, arriveCRS,
-                                                  str(departure_date).replace('-', '/'),
-                                                  leaving_time.strftime("%H:%M"))
-                    send_message(random.choice(bot_feedback['found_single_ticket'])
-                                 + "<br>Total cost: " + str(cost)
-                                 + "<br>Time: " + str(time)
-                                 + "<br>URL: " + "<a href=" + str(url)
-                                 + 'target="_blank" rel ="noopener noreferrer" >Link to ticket</a>')
-                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to next query
-                self.dictionary['confirmation'] = ''
-            elif not self.currentInfo.get('correct_booking'):
-                self.declare(Fact(correct_booking=self.dictionary.get('confirmation')))  # go to ask adjustment
-                self.dictionary['confirmation'] = ''
+    @Rule(Fact(correct_booking=False),
+          Fact(return_or_not=MATCH.return_or_not),
+          salience=28)
+    def ask_adjustment(self, return_or_not):
+        if self.dictionary.get('raw_message') in ['Departure location', 'Arrival location',
+                                                  'Departure date', 'Departure time',
+                                                  'Change to single/return',
+                                                  'Return date', 'Return time']:
+            del self.currentInfo['correct_booking']
+            if self.dictionary.get('raw_message') == 'Departure location':
+                engine.reset()
+                del self.currentInfo['from_station']
+                del self.currentInfo['from_crs']
+                send_message(random.choice(bot_feedback['ask_from_location']))
+            elif self.dictionary.get('raw_message') == 'Arrival location':
+                engine.reset()
+                del self.currentInfo['to_station']
+                del self.currentInfo['to_crs']
+                send_message(random.choice(bot_feedback['ask_to_location']))
+            elif self.dictionary.get('raw_message') == 'Departure date':
+                del self.currentInfo['outward_date']
+                send_message(random.choice(bot_feedback['ask_date']))
+            elif self.dictionary.get('raw_message') == 'Departure time':
+                del self.currentInfo['outward_time']
+                send_message(random.choice(bot_feedback['ask_time']))
+            elif self.dictionary.get('raw_message') == 'Change to single/return':
+                del self.currentInfo['confirmation_return']
+                del self.currentInfo['return_date']
+                del self.currentInfo['return_time']
+                send_message(random.choice(bot_feedback['ask_return']))
+            elif self.dictionary.get('raw_message') == 'Return date':
+                del self.currentInfo['return_date']
+                send_message(random.choice(bot_feedback['ask_return_date']))
+            elif self.dictionary.get('raw_message') == 'Return time':
+                del self.currentInfo['return_time']
+                send_message(random.choice(bot_feedback['ask_return_time']))
             else:
-                self.dictionary.get('raw_message')
                 send_message(random.choice(bot_feedback['no_answer']))
         elif self.dictionary.get('reset'):
             send_message("Okay I will forget everything you have entered.")
@@ -742,117 +807,61 @@ class Chatbot(KnowledgeEngine):
                 if key in self.currentInfo:
                     del self.currentInfo[key]
                 elif self.currentInfo == {}:
-                    break
-        else:
-            self.currentInfo['correct_booking'] = ''
-            no_return = "Please confirm your booking..." \
-                        "<br>Departure datetime: " + str(departure_date) + " at " + leaving_time.strftime("%H:%M") \
-                        + "<br>Departing from: " + str(departure_location) \
-                        + "<br>Arriving at: " + str(arrival_location)
-            if return_or_not:
-                returning = no_return \
-                            + "<br>Returning datetime: " + str(return_date) \
-                            + " at " + return_time.strftime("%H:%M")
-                send_message(returning)
-            else:
-                send_message(no_return)
-
-    @Rule(Fact(correct_booking=False),
-          Fact(return_or_not=MATCH.return_or_not),
-          salience=28)
-    def ask_adjustment(self, return_or_not):
-        if self.dictionary.get('raw_message') == '1':
-            del self.currentInfo['from_station']
-        elif self.dictionary.get('raw_message') == '2':
-            del self.currentInfo['to_station']
-        elif self.dictionary.get('raw_message') == '3':
-            del self.currentInfo['outward_date']
-        elif self.dictionary.get('raw_message') == '4':
-            del self.currentInfo['outward_time']
-        elif self.dictionary.get('raw_message') == '5':
-            del self.currentInfo['confirmation_return']
-            del self.currentInfo['return_date']
-            del self.currentInfo['return_time']
-        elif self.dictionary.get('raw_message') == '6':
-            del self.currentInfo['return_date']
-        elif self.dictionary.get('raw_message') == '7':
-            del self.currentInfo['return_time']
-        elif self.dictionary.get('reset'):
-            send_message("Okay I will forget everything you have entered.")
-            engine.reset()
-            for key in all_current_info:
-                if key in self.currentInfo:
-                    del self.currentInfo[key]
-                elif self.currentInfo == {}:
+                    send_message(random.choice(bot_feedback['greeting']))
                     break
         else:
             if self.dictionary.get('confirmation') != '':
-                no_return = "To adjust your ticket information enter the following number:" \
-                             "1 - Departure location" \
-                             "2 - Arrival location" \
-                             "3 - Departure date" \
-                             "4 - Departure time" \
-                             "5 - Change to single/return"
+                change = "To change your ticket information, please choose what to adjust:"
+                list_no_return = ["Departure location",
+                                  "Arrival location",
+                                  "Departure date",
+                                  "Departure time",
+                                  "Change to single/return"]
                 if return_or_not:
-                    returning = no_return + \
-                                "6 - Return date" \
-                                "7 - Return time"
-                    send_message(returning)          #random.choice(bot_feedback['ask_adjustment'])
+                    list_returning = ["Return date",
+                                      "Return time"]
+                    list_no_return.extend(list_returning)
+                    send_list(change, list_no_return)  # random.choice(bot_feedback['ask_adjustment'])
                 else:
-                    send_message(no_return)
+                    send_list(change, list_no_return)
             else:
                 send_message(random.choice(bot_feedback['no_answer']))
 
     @Rule(Fact(correct_booking=True),
           salience=26)
     def next_query(self):
-        if 'confirmation' in self.dictionary and \
-                (self.dictionary.get('confirmation') != '' or self.dictionary.get('intent') != ''):
-            if self.dictionary.get('confirmation'):
-                send_message(random.choice(bot_feedback['next_query']))
-            elif not self.dictionary.get('confirmation'):
-                for key in all_current_info:
-                    if key in self.currentInfo:
-                        del self.currentInfo[key]
-                send_message(random.choice(bot_feedback['show_gratitude']))
-                engine.reset()
-            elif self.dictionary.get('intent') == 'ticket':
-                all_current_info.pop(0)
-                for key in all_current_info:
-                    if key in self.currentInfo:
-                        del self.currentInfo[key]
-                engine.reset()
-            elif self.dictionary.get('intent') == 'help':
-                for key in all_current_info:
-                    if key in self.currentInfo:
-                        del self.currentInfo[key]
-                self.currentInfo['intent'] = self.dictionary.get('intent')
-                engine.reset()
-            elif self.dictionary.get('intent') == 'cancellation':
-                for key in all_current_info:
-                    if key in self.currentInfo:
-                        del self.currentInfo[key]
-                self.currentInfo['intent'] = self.dictionary.get('intent')
-                engine.reset()
-            elif self.dictionary.get('intent') == 'change':
-                for key in all_current_info:
-                    if key in self.currentInfo:
-                        del self.currentInfo[key]
-                self.currentInfo['intent'] = self.dictionary.get('intent')
-                engine.reset()
-        elif self.dictionary.get('reset'):
-            send_message("Okay I will forget everything you have entered.")
-            engine.reset()
+        if self.dictionary.get('confirmation'):
             for key in all_current_info:
                 if key in self.currentInfo:
                     del self.currentInfo[key]
-                elif self.currentInfo == {}:
-                    break
+            send_message(random.choice(bot_feedback['next_query']))
+        elif self.dictionary.get('confirmation') == False:
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+            send_message(random.choice(bot_feedback['show_gratitude']))
+        elif self.dictionary.get('intent') != '':
+            for key in all_current_info:
+                if key in self.currentInfo:
+                    del self.currentInfo[key]
+            if self.dictionary.get('intent') == 'ticket' or 'delay':
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                send_message(random.choice(bot_feedback['ask_from_location']))
+            elif self.dictionary.get('intent') == 'help':
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                send_message(random.choice(bot_feedback['ask_help']))
+            elif self.dictionary.get('intent') == 'cancel':
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                send_message("For more information on cancelling your ticket please visit: "
+                             "<a href=https://www.greateranglia.co.uk/contact-us/faqs/refunds>Link</a>")
+            elif self.dictionary.get('intent') == 'change':
+                self.currentInfo['intent'] = self.dictionary.get('intent')
+                send_message("If you would like to make adjustments to your ticket please use the link provided: "
+                             "<a href=https://www.greateranglia.co.uk/contact-us/faqs/tickets>Link</a>")
+        elif self.dictionary.get('confirmation') == '':
+            send_message(random.choice(bot_feedback['next_query']))
         else:
-            if self.dictionary.get('confirmation') == '':
-                send_message(random.choice(bot_feedback['next_query']))
-            else:
-                send_message(random.choice(bot_feedback['no_answer']))
+            send_message(random.choice(bot_feedback['no_answer']))
 
 
 engine = Chatbot()
@@ -866,3 +875,12 @@ def process_user_input(info):
     print(engine.currentInfo)
     engine.reset()
     engine.run()
+
+
+def refresh_user_knowledge():
+    engine.reset()
+    for key in all_current_info:
+        if key in engine.currentInfo:
+            del engine.currentInfo[key]
+        elif engine.currentInfo == {}:
+            break

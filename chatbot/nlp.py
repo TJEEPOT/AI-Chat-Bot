@@ -23,8 +23,8 @@ def parse_user_input(user_input):
     # variables
     processed_input = {
         "intent": "",  # e.g tickets, help, delays
-        "reset": False,     # e.g True False if user wants to reset dict
-        "includes_greeting": False,     # True if message contained a greeting
+        "reset": False,  # e.g True False if user wants to reset dict
+        "includes_greeting": False,  # True if message contained a greeting
         "from_station": "",  # e.g Norwich
         "from_crs": "",  # e.g NRW
         "to_station": "",  # e.g London Liverpool Street
@@ -34,23 +34,23 @@ def parse_user_input(user_input):
         "return_date": "",  # e.g 20/01/2021 (checks done in RE for future date etc)
         "return_time": "",  # e.g 10:00
         "confirmation": "",  # e.g true / false response for bot asking confirmation
-        "no_category": [],  # any extra data NLP can't work out intent
-        "suggestion": [],   # for station fuzzy matching
-        "sanitized_message": "",    # raw message after being sanitized
+        "no_category": [],  # any extra data NLP can't work out
+        "suggestion": [],   # for station / location fuzzy matching
+        "sanitized_message": "",  # raw message after being sanitized
         "raw_message": ""  # raw message input by user for history etc
     }
     station_names = []
     station_crs = []
     station_pairs = {}
     station_locations = []
-    book_ticket = ["book", "TICKET", "travel", "go"]  # maybe get from db
+    book_ticket = ["book", "ticket", "travel", "go"]  # maybe get from db
     greetings = ["hi", "hello", "hey"]
     get_help = ["help", "assistance"]
-    delays = ["delay", "late", "behind schedule", "delays"]
-    cancellation = ['cancel', 'cancelation', 'cancellation']
-    changes = ['change']
+    delays = ["delay", "late", "behind schedule"]
+    cancellation = ["cancel", "cancellation"]
+    changes = ["change", "alter"]
     confirm_yes = ["correct", "yes", "yep", "y"]
-    confirm_no = ["incorrect", "no", "wrong"]
+    confirm_no = ["incorrect", "no", "wrong", "nothing", "that is all"]
     reset = ["reset", "re do", "start again", "start over", "restart"]
 
     # populate lists from db
@@ -65,9 +65,9 @@ def parse_user_input(user_input):
         if row[2] and row[2] not in station_locations:
             station_locations.append(row[2])
 
-    nlp = spacy.load("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm", disable=["ner"])
     phrase_matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
-
+    phrase_matcher2 = PhraseMatcher(nlp.vocab, attr="LOWER")
     # build patterns
     station_names_pattern = [nlp.make_doc(text) for text in station_names]
     station_crs_pattern = [nlp.make_doc(text) for text in station_crs]
@@ -76,7 +76,6 @@ def parse_user_input(user_input):
     intents_ticket_pattern = [nlp.make_doc(text) for text in book_ticket]
     intents_help_pattern = [nlp.make_doc(text) for text in get_help]
     intents_delays_pattern = [nlp.make_doc(text) for text in delays]
-
     confirm_yes_pattern = [nlp.make_doc(text) for text in confirm_yes]
     confirm_no_pattern = [nlp.make_doc(text) for text in confirm_no]
     is_greeting_pattern = [nlp.make_doc(text) for text in greetings]
@@ -84,16 +83,13 @@ def parse_user_input(user_input):
 
     # add match rules
     def on_match_intent(match_matcher, match_doc, match_id, match_matches):
-
         intent = nlp.vocab.strings[match_matches[match_id][0]]
-
         if len(match_matches) > 1:
             for match in match_matches:
                 current_match_intent = nlp.vocab.strings[match[0]]
                 if current_match_intent == "cancel" or current_match_intent == "change":
                     intent = current_match_intent
                     break
-
         processed_input['intent'] = intent
 
     def on_match_greeting(match_matcher, match_doc, match_id, match_matches):
@@ -165,17 +161,17 @@ def parse_user_input(user_input):
             processed_input['confirmation'] = ""
 
     # add patterns
-    phrase_matcher.add("change", on_match_intent, *intents_change_pattern)
-    phrase_matcher.add("cancel", on_match_intent, *intents_cancel_pattern)
-    phrase_matcher.add("ticket", on_match_intent, *intents_ticket_pattern)
-    phrase_matcher.add("help", on_match_intent, *intents_help_pattern)
-    phrase_matcher.add("delay", on_match_intent, *intents_delays_pattern)
-    phrase_matcher.add("reset", on_match_reset, *reset_pattern)
+    phrase_matcher2.add("change", on_match_intent, *intents_change_pattern)
+    phrase_matcher2.add("cancel", on_match_intent, *intents_cancel_pattern)
+    phrase_matcher2.add("ticket", on_match_intent, *intents_ticket_pattern)
+    phrase_matcher2.add("help", on_match_intent, *intents_help_pattern)
+    phrase_matcher2.add("delay", on_match_intent, *intents_delays_pattern)
+    phrase_matcher2.add("reset", on_match_reset, *reset_pattern)
     phrase_matcher.add("station_names", on_match_station_name, *station_names_pattern)
     phrase_matcher.add("station_crs", on_match_station_crs, *station_crs_pattern)
-    phrase_matcher.add("confirm_yes", on_match_confirm_true, *confirm_yes_pattern)
-    phrase_matcher.add("confirm_no", on_match_confirm_false, *confirm_no_pattern)
-    phrase_matcher.add("greeting", on_match_greeting, *is_greeting_pattern)
+    phrase_matcher2.add("confirm_yes", on_match_confirm_true, *confirm_yes_pattern)
+    phrase_matcher2.add("confirm_no", on_match_confirm_false, *confirm_no_pattern)
+    phrase_matcher2.add("greeting", on_match_greeting, *is_greeting_pattern)
 
     # find dates
     def match_dates():
@@ -183,22 +179,17 @@ def parse_user_input(user_input):
         midnight_vars = ['midnight', '12am', '00:00']
         midnight_requested = False
         midnight_time = datetime.time(0, 0)
-        input_string = user_input
+        input_string = user_input.lower()
+
         for token in doc:
             if token.text.lower in midnight_vars:
                 midnight_requested = True
             if token.text.lower() == "today":
                 today_date = datetime.datetime.today().date()
-                input_string = input_string.replace("today", str(today_date))
-                #today_date = today_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                #found_dates.append(today_date)
+                input_string = input_string.replace(token.text, today_date.strftime('%d/%m/%Y'))
             elif token.text.lower() == "tomorrow":
                 date_tomorrow = (datetime.datetime.today() + timedelta(1)).date()
-                print(date_tomorrow)
-                input_string = input_string.replace("tomorrow", str(date_tomorrow))
-                #date_tomorrow = date_tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
-                #found_dates.append(date_tomorrow)
-
+                input_string = input_string.replace(token.text, date_tomorrow.strftime('%d/%m/%Y'))
 
         date_matches = datefinder.find_dates(input_string)
         for dateMatch in date_matches:
@@ -256,7 +247,6 @@ def parse_user_input(user_input):
                 ok_to_continue = True
                 while current_token.i < (len(doc) - 1) and ok_to_continue:
                     neighbour_token = current_token.nbor()
-
                     if neighbour_token.pos_ == "NOUN" or neighbour_token.pos_ == "PROPN":
                         token_name = token_name + " " + current_token.nbor().text
                         current_token = neighbour_token
@@ -277,19 +267,15 @@ def parse_user_input(user_input):
                 if top_station_score >= 80:
                     if top_location_score >= 80:
                         if top_station_score >= top_location_score:     # use station
-
                             suggestion = {'station': top_station_name}
                             suggestion_value = top_station_name
                         else:   # use location
-
                             suggestion = {'location': top_location_name}
                             suggestion_value = top_location_name
                     else:   # station valid location not
                         suggestion = {'station': top_station_name}
                         suggestion_value = top_station_name
-
                 elif top_location_score >= 80:  # location valid station not
-
                     suggestion = {'location': top_location_name}
                     suggestion_value = top_location_name
                 else:
@@ -300,12 +286,14 @@ def parse_user_input(user_input):
                     if suggestion and current_to_station != suggestion_value or \
                             current_from_station != suggestion_value:
                         processed_input['suggestion'].append(suggestion)
-
                 if current_token.i == (len(doc) - 1):    # early exit if entire string matched (prevent repeat)
                     break
 
     corrected_input = sanitize_input(user_input, station_crs + station_names)
     doc = nlp(corrected_input)
+    lemma_string = get_lemma_string(doc)
+    doc2 = nlp(lemma_string)
+    phrase_matcher2(doc2)
     phrase_matcher(doc)
     match_dates()
     processed_input['sanitized_message'] = corrected_input
@@ -314,20 +302,26 @@ def parse_user_input(user_input):
     return processed_input
 
 
+def get_lemma_string(spacy_doc):
+    lemma_string = ""
+    for token in spacy_doc:
+        lemma_string += " " + token.lemma_.lower()
+    return lemma_string
+
+
 def check_spellings(raw_input, known_words=None):
     if known_words is None:
         known_words = []
-    spell = SpellChecker()
+    spell = SpellChecker(distance=2)
     known_lower = []
     for word in known_words:
         known_lower.append(word.lower())
-
+    spell.word_frequency.load_words(known_lower)
     corrected_user_input_string = str(raw_input)
     spelling_mistakes = spell.unknown(str(raw_input).split(" "))
     for mistake in spelling_mistakes:
         if mistake not in known_lower and not re.match(r'[0-9]*(am|pm)', mistake):
             correction = spell.correction(mistake)
-            # print(f'Original word = {mistake}. Correction = {correction}')
             corrected_user_input_string = corrected_user_input_string.replace(mistake, correction)
     return corrected_user_input_string
 
