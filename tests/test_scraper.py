@@ -35,7 +35,7 @@ class TestStringMethods(unittest.TestCase):
     def test_single_multi_route(self):
         # testing that a route that requires multiple networks will deliver results
         cost, time, url = scraper.single_fare("PNZ", "GOF", "2021/02/14", "16:30")
-        self.assertEqual("£158.00", cost)
+        self.assertEqual("£259.30", cost)
         self.assertEqual("04:58", time)
         self.assertEqual("https://ojp.nationalrail.co.uk/service/timesandfares/PNZ/GOF/140221/1630/dep", url)
 

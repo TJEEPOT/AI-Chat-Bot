@@ -19,12 +19,6 @@ class MyTestCase(unittest.TestCase):
         response = self.app.get("/", follow_redirects=True)
         self.assertEqual(200, response.status_code)
 
-    def test_reply_to_test(self):  # TODO: This will need changing during integration
-        response = self.app.post("/get_reply", content_type="application/json", json="test",
-                                 follow_redirects=True)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual({"message": "Incorrect input, please try again."}, response.get_json())
-
     def test_get_audio(self):
         with open(r"data/test_1.wav", "rb") as rec1:
             audio = rec1.read()

@@ -25,27 +25,6 @@ class TestReasoningEngine(unittest.TestCase):
 
         self.assertEqual(True, re.process_user_input(processed_nlp_output))
 
-    def test_from_station(self):
-        self.assertEqual(True, False)
-
-    def test_to_station(self):
-        self.assertEqual(True, False)
-
-    def test_depart_date(self):
-        self.assertEqual(True, False)
-
-    def test_depart_time(self):
-        self.assertEqual(True, False)
-
-    def test_returning(self):
-        self.assertEqual(True, False)
-
-    def test_return_date(self):
-        self.assertEqual(True, False)
-
-    def test_return_time(self):
-        self.assertEqual(True, False)
-
 
 if __name__ == '__main__':
     unittest.main()
