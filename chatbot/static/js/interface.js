@@ -122,9 +122,10 @@ function submit(){
              if (userMessage !== "") {
                  addMessage(inputBox.value, "human-message", "You")
                  socket.send(userMessage);
+
              }
-
-
+              inputBox.value = "";
+}
 /**
  *
  * Reads a message using text-to-speech
