@@ -1,7 +1,8 @@
 # What It Does
-This is an AI Chat Bot which gives details for train tickets, can give estimated arrival times if your train is delayed as well as giving helpful information regarding train services to the user.
+This is an AI Chat Bot which gives details for train tickets, can give estimated arrival times if your train is delayed as well as giving helpful information regarding train services to the user. A demonstation of this system running can be found below:
+https://youtu.be/a5CYEAKxVO0
 
-Note: Jupyter notebooks have been left in the model folder in order to show some of the testing code used when evaluating the models. 
+Note: Jupyter notebooks have been left in the model folder in order to show some of the testing code used when evaluating the models.
 
 # Setup Notes
 Clone this repo and set up your venv. Install pips from requirements.txt then run `python -m spacy download 
