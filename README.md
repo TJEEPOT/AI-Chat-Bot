@@ -1,6 +1,7 @@
 # What It Does
 This is an AI Chat Bot which gives details for train tickets, can give estimated arrival times if your train is delayed as well as giving helpful information regarding train services to the user. A demonstation of this system running can be found below:
-<video src='https://youtu.be/a5CYEAKxVO0' width=180></video>
+
+[![Video](https://img.youtube.com/vi/a5CYEAKxVO0/maxresdefault.jpg)](https://youtu.be/a5CYEAKxVO0)
 
 Note: Jupyter notebooks have been left in the model folder in order to show some of the testing code used when evaluating the models.
 
